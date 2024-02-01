@@ -17,8 +17,9 @@ func XlibSurfaceCreateInfoKHRHelper(window, display unsafe.Pointer, instance Ins
 	cinstance, _ := *(*C.VkInstance)(unsafe.Pointer(&instance)), cgoAllocsUnknown
 	createInfo := C.VkXlibSurfaceCreateInfoKHR{}
 	createInfo.sType = C.VkStructureType(StructureTypeXlibSurfaceCreateInfo)
+	println(uintptr(display), uintptr(window))
 	createInfo.dpy = (*C.Display)(display)
-	createInfo.window = C.Window(window)
+	createInfo.window = *(*C.Window)(window)
 	cSurface, _ := (*C.VkSurfaceKHR)(unsafe.Pointer(surface)), cgoAllocsUnknown
 	__ret := C.callVkCreateXlibSurfaceKHR(cinstance, &createInfo, nil, cSurface)
 	return (Result)(__ret)
