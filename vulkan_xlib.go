@@ -10,7 +10,6 @@ package vulkan
 #include "vulkan/vulkan_xlib.h"
 */
 import "C"
-
 import "unsafe"
 
 func XlibSurfaceCreateInfoKHRHelper(window, display unsafe.Pointer, instance Instance, surface *Surface) Result {
