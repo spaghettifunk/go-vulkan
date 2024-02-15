@@ -85,11 +85,6 @@ func Memcopy(dst unsafe.Pointer, src []byte) int {
 	return copy(dstView[:len(src)], src)
 }
 
-// Memview returns a pointer to user data, so Vulkan runtime in userspace can peek.
-func Memview(data []byte) unsafe.Pointer {
-	return unsafe.Pointer((*sliceHeader)(unsafe.Pointer(&data)).Data)
-}
-
 func NewClearValue(color []float32) ClearValue {
 	var v ClearValue
 	v.SetColor(color)
