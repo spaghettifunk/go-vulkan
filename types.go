@@ -11,10 +11,11 @@ package vulkan
 #include "vk_wrapper.h"
 #include "vk_bridge.h"
 #include <stdlib.h>
-#include "cgo_helpers.h"
 */
 import "C"
 import "unsafe"
+
+type Char = C.char
 
 // Flags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkFlags.html
 type Flags uint32
@@ -281,13 +282,11 @@ type StencilFaceFlags uint32
 type ApplicationInfo struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
-	PApplicationName   string
+	PApplicationName   *C.char
 	ApplicationVersion uint32
-	PEngineName        string
+	PEngineName        *C.char
 	EngineVersion      uint32
 	ApiVersion         uint32
-	refb0af7378        *C.VkApplicationInfo
-	allocsb0af7378     interface{}
 }
 
 // InstanceCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkInstanceCreateInfo.html
@@ -296,12 +295,40 @@ type InstanceCreateInfo struct {
 	PNext                   unsafe.Pointer
 	Flags                   InstanceCreateFlags
 	PApplicationInfo        *ApplicationInfo
-	EnabledLayerCount       uint32
-	PpEnabledLayerNames     []string
-	EnabledExtensionCount   uint32
-	PpEnabledExtensionNames []string
-	ref9b760798             *C.VkInstanceCreateInfo
-	allocs9b760798          interface{}
+	enabledLayerCount       uint32
+	ppEnabledLayerNames     **C.char
+	enabledExtensionCount   uint32
+	ppEnabledExtensionNames **C.char
+}
+
+func (s *InstanceCreateInfo) SetEnabledLayerNames(names []string) {
+	s.enabledLayerCount = uint32(len(names))
+	strs := make([]*C.char, len(names))
+	for i := range names {
+		strs[i] = C.CString(names[i])
+	}
+	s.ppEnabledLayerNames = &strs[0]
+}
+
+func (s *InstanceCreateInfo) SetEnabledExtensionNames(names []string) {
+	s.enabledExtensionCount = uint32(len(names))
+	strs := make([]*C.char, len(names))
+	for i := range names {
+		strs[i] = C.CString(names[i])
+	}
+	s.ppEnabledExtensionNames = &strs[0]
+}
+
+func (s *InstanceCreateInfo) Free() {
+	const stride = unsafe.Sizeof((*C.char)(nil))
+	for i := uintptr(0); i < stride * uintptr(s.enabledLayerCount); i += stride {
+		cPtr := (**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(s.ppEnabledLayerNames)) + i))
+		C.free(unsafe.Pointer(*cPtr))
+	}
+	for i := uintptr(0); i < stride * uintptr(s.enabledExtensionCount); i += stride {
+		cPtr := (**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(s.ppEnabledExtensionNames)) + i))
+		C.free(unsafe.Pointer(*cPtr))
+	}
 }
 
 // AllocationCallbacks as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkAllocationCallbacks.html
@@ -364,8 +391,6 @@ type PhysicalDeviceFeatures struct {
 	SparseResidencyAliased                  Bool32
 	VariableMultisampleRate                 Bool32
 	InheritedQueries                        Bool32
-	reff97e405d                             *C.VkPhysicalDeviceFeatures
-	allocsf97e405d                          interface{}
 }
 
 // FormatProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkFormatProperties.html
@@ -373,8 +398,6 @@ type FormatProperties struct {
 	LinearTilingFeatures  FormatFeatureFlags
 	OptimalTilingFeatures FormatFeatureFlags
 	BufferFeatures        FormatFeatureFlags
-	refc4b9937b           *C.VkFormatProperties
-	allocsc4b9937b        interface{}
 }
 
 // Extent3D as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExtent3D.html
@@ -382,8 +405,6 @@ type Extent3D struct {
 	Width          uint32
 	Height         uint32
 	Depth          uint32
-	reffbf6c42a    *C.VkExtent3D
-	allocsfbf6c42a interface{}
 }
 
 // ImageFormatProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageFormatProperties.html
@@ -393,8 +414,6 @@ type ImageFormatProperties struct {
 	MaxArrayLayers  uint32
 	SampleCounts    SampleCountFlags
 	MaxResourceSize DeviceSize
-	ref4cfb2ea2     *C.VkImageFormatProperties
-	allocs4cfb2ea2  interface{}
 }
 
 // PhysicalDeviceLimits as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceLimits.html
@@ -505,8 +524,6 @@ type PhysicalDeviceLimits struct {
 	OptimalBufferCopyOffsetAlignment                DeviceSize
 	OptimalBufferCopyRowPitchAlignment              DeviceSize
 	NonCoherentAtomSize                             DeviceSize
-	ref7926795a                                     *C.VkPhysicalDeviceLimits
-	allocs7926795a                                  interface{}
 }
 
 // PhysicalDeviceSparseProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceSparseProperties.html
@@ -516,8 +533,6 @@ type PhysicalDeviceSparseProperties struct {
 	ResidencyStandard3DBlockShape            Bool32
 	ResidencyAlignedMipSize                  Bool32
 	ResidencyNonResidentStrict               Bool32
-	ref6d7c11e6                              *C.VkPhysicalDeviceSparseProperties
-	allocs6d7c11e6                           interface{}
 }
 
 // PhysicalDeviceProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceProperties.html
@@ -531,8 +546,6 @@ type PhysicalDeviceProperties struct {
 	PipelineCacheUUID [16]byte
 	Limits            PhysicalDeviceLimits
 	SparseProperties  PhysicalDeviceSparseProperties
-	ref1080ca9d       *C.VkPhysicalDeviceProperties
-	allocs1080ca9d    interface{}
 }
 
 // QueueFamilyProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkQueueFamilyProperties.html
@@ -541,24 +554,18 @@ type QueueFamilyProperties struct {
 	QueueCount                  uint32
 	TimestampValidBits          uint32
 	MinImageTransferGranularity Extent3D
-	refd538c446                 *C.VkQueueFamilyProperties
-	allocsd538c446              interface{}
 }
 
 // MemoryType as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryType.html
 type MemoryType struct {
 	PropertyFlags  MemoryPropertyFlags
 	HeapIndex      uint32
-	ref2f46e01d    *C.VkMemoryType
-	allocs2f46e01d interface{}
 }
 
 // MemoryHeap as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryHeap.html
 type MemoryHeap struct {
 	Size           DeviceSize
 	Flags          MemoryHeapFlags
-	ref1eb195d5    *C.VkMemoryHeap
-	allocs1eb195d5 interface{}
 }
 
 // PhysicalDeviceMemoryProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMemoryProperties.html
@@ -567,8 +574,6 @@ type PhysicalDeviceMemoryProperties struct {
 	MemoryTypes     [32]MemoryType
 	MemoryHeapCount uint32
 	MemoryHeaps     [16]MemoryHeap
-	ref3aabb5fd     *C.VkPhysicalDeviceMemoryProperties
-	allocs3aabb5fd  interface{}
 }
 
 // DeviceQueueCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceQueueCreateInfo.html
@@ -578,9 +583,7 @@ type DeviceQueueCreateInfo struct {
 	Flags            DeviceQueueCreateFlags
 	QueueFamilyIndex uint32
 	QueueCount       uint32
-	PQueuePriorities []float32
-	ref6087b30d      *C.VkDeviceQueueCreateInfo
-	allocs6087b30d   interface{}
+	PQueuePriorities *float32
 }
 
 // DeviceCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceCreateInfo.html
@@ -589,22 +592,48 @@ type DeviceCreateInfo struct {
 	PNext                   unsafe.Pointer
 	Flags                   DeviceCreateFlags
 	QueueCreateInfoCount    uint32
-	PQueueCreateInfos       []DeviceQueueCreateInfo
-	EnabledLayerCount       uint32
-	PpEnabledLayerNames     []string
-	EnabledExtensionCount   uint32
-	PpEnabledExtensionNames []string
-	PEnabledFeatures        []PhysicalDeviceFeatures
-	refc0d8b997             *C.VkDeviceCreateInfo
-	allocsc0d8b997          interface{}
+	PQueueCreateInfos       *DeviceQueueCreateInfo
+	enabledLayerCount       uint32
+	ppEnabledLayerNames     **C.char
+	enabledExtensionCount   uint32
+	ppEnabledExtensionNames **C.char
+	PEnabledFeatures        *PhysicalDeviceFeatures
+}
+
+func (s *DeviceCreateInfo) SetEnabledLayerNames(names []string) {
+	s.enabledLayerCount = uint32(len(names))
+	strs := make([]*C.char, len(names))
+	for i := range names {
+		strs[i] = C.CString(names[i])
+	}
+	s.ppEnabledLayerNames = &strs[0]
+}
+
+func (s *DeviceCreateInfo) SetEnabledExtensionNames(names []string) {
+	s.enabledExtensionCount = uint32(len(names))
+	strs := make([]*C.char, len(names))
+	for i := range names {
+		strs[i] = C.CString(names[i])
+	}
+	s.ppEnabledExtensionNames = &strs[0]
+}
+
+func (s *DeviceCreateInfo) Free() {
+	const stride = unsafe.Sizeof((*C.char)(nil))
+	for i := uintptr(0); i < stride * uintptr(s.enabledLayerCount); i += stride {
+		cPtr := (**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(s.ppEnabledLayerNames)) + i))
+		C.free(unsafe.Pointer(*cPtr))
+	}
+	for i := uintptr(0); i < stride * uintptr(s.enabledExtensionCount); i += stride {
+		cPtr := (**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(s.ppEnabledExtensionNames)) + i))
+		C.free(unsafe.Pointer(*cPtr))
+	}
 }
 
 // ExtensionProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExtensionProperties.html
 type ExtensionProperties struct {
 	ExtensionName  [256]byte
 	SpecVersion    uint32
-	ref2f001956    *C.VkExtensionProperties
-	allocs2f001956 interface{}
 }
 
 // LayerProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkLayerProperties.html
@@ -613,8 +642,6 @@ type LayerProperties struct {
 	SpecVersion           uint32
 	ImplementationVersion uint32
 	Description           [256]byte
-	refd9407ce7           *C.VkLayerProperties
-	allocsd9407ce7        interface{}
 }
 
 // SubmitInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSubmitInfo.html
@@ -622,14 +649,12 @@ type SubmitInfo struct {
 	SType                StructureType
 	PNext                unsafe.Pointer
 	WaitSemaphoreCount   uint32
-	PWaitSemaphores      []Semaphore
-	PWaitDstStageMask    []PipelineStageFlags
+	PWaitSemaphores      *Semaphore
+	PWaitDstStageMask    *PipelineStageFlags
 	CommandBufferCount   uint32
-	PCommandBuffers      []CommandBuffer
+	PCommandBuffers      *CommandBuffer
 	SignalSemaphoreCount uint32
-	PSignalSemaphores    []Semaphore
-	ref22884025          *C.VkSubmitInfo
-	allocs22884025       interface{}
+	PSignalSemaphores    *Semaphore
 }
 
 // MemoryAllocateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryAllocateInfo.html
@@ -638,8 +663,6 @@ type MemoryAllocateInfo struct {
 	PNext           unsafe.Pointer
 	AllocationSize  DeviceSize
 	MemoryTypeIndex uint32
-	ref31032b       *C.VkMemoryAllocateInfo
-	allocs31032b    interface{}
 }
 
 // MappedMemoryRange as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMappedMemoryRange.html
@@ -649,8 +672,6 @@ type MappedMemoryRange struct {
 	Memory         DeviceMemory
 	Offset         DeviceSize
 	Size           DeviceSize
-	ref42a37320    *C.VkMappedMemoryRange
-	allocs42a37320 interface{}
 }
 
 // MemoryRequirements as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryRequirements.html
@@ -658,8 +679,6 @@ type MemoryRequirements struct {
 	Size           DeviceSize
 	Alignment      DeviceSize
 	MemoryTypeBits uint32
-	ref5259fc6b    *C.VkMemoryRequirements
-	allocs5259fc6b interface{}
 }
 
 // SparseImageFormatProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageFormatProperties.html
@@ -667,8 +686,6 @@ type SparseImageFormatProperties struct {
 	AspectMask       ImageAspectFlags
 	ImageGranularity Extent3D
 	Flags            SparseImageFormatFlags
-	ref2c12cf44      *C.VkSparseImageFormatProperties
-	allocs2c12cf44   interface{}
 }
 
 // SparseImageMemoryRequirements as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageMemoryRequirements.html
@@ -678,8 +695,6 @@ type SparseImageMemoryRequirements struct {
 	ImageMipTailSize     DeviceSize
 	ImageMipTailOffset   DeviceSize
 	ImageMipTailStride   DeviceSize
-	ref685a2323          *C.VkSparseImageMemoryRequirements
-	allocs685a2323       interface{}
 }
 
 // SparseMemoryBind as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseMemoryBind.html
@@ -689,26 +704,20 @@ type SparseMemoryBind struct {
 	Memory         DeviceMemory
 	MemoryOffset   DeviceSize
 	Flags          SparseMemoryBindFlags
-	ref5bf418e8    *C.VkSparseMemoryBind
-	allocs5bf418e8 interface{}
 }
 
 // SparseBufferMemoryBindInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseBufferMemoryBindInfo.html
 type SparseBufferMemoryBindInfo struct {
 	Buffer         Buffer
 	BindCount      uint32
-	PBinds         []SparseMemoryBind
-	refebcaf40c    *C.VkSparseBufferMemoryBindInfo
-	allocsebcaf40c interface{}
+	PBinds         *SparseMemoryBind
 }
 
 // SparseImageOpaqueMemoryBindInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageOpaqueMemoryBindInfo.html
 type SparseImageOpaqueMemoryBindInfo struct {
 	Image          Image
 	BindCount      uint32
-	PBinds         []SparseMemoryBind
-	reffb1b3d56    *C.VkSparseImageOpaqueMemoryBindInfo
-	allocsfb1b3d56 interface{}
+	PBinds         *SparseMemoryBind
 }
 
 // ImageSubresource as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageSubresource.html
@@ -716,8 +725,6 @@ type ImageSubresource struct {
 	AspectMask     ImageAspectFlags
 	MipLevel       uint32
 	ArrayLayer     uint32
-	reffeaa0d8a    *C.VkImageSubresource
-	allocsfeaa0d8a interface{}
 }
 
 // Offset3D as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkOffset3D.html
@@ -725,8 +732,6 @@ type Offset3D struct {
 	X              int32
 	Y              int32
 	Z              int32
-	ref2b6879c2    *C.VkOffset3D
-	allocs2b6879c2 interface{}
 }
 
 // SparseImageMemoryBind as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageMemoryBind.html
@@ -737,17 +742,13 @@ type SparseImageMemoryBind struct {
 	Memory         DeviceMemory
 	MemoryOffset   DeviceSize
 	Flags          SparseMemoryBindFlags
-	ref41b516d7    *C.VkSparseImageMemoryBind
-	allocs41b516d7 interface{}
 }
 
 // SparseImageMemoryBindInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageMemoryBindInfo.html
 type SparseImageMemoryBindInfo struct {
 	Image          Image
 	BindCount      uint32
-	PBinds         []SparseImageMemoryBind
-	ref50faeb70    *C.VkSparseImageMemoryBindInfo
-	allocs50faeb70 interface{}
+	PBinds         *SparseImageMemoryBind
 }
 
 // BindSparseInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBindSparseInfo.html
@@ -755,17 +756,15 @@ type BindSparseInfo struct {
 	SType                StructureType
 	PNext                unsafe.Pointer
 	WaitSemaphoreCount   uint32
-	PWaitSemaphores      []Semaphore
+	PWaitSemaphores      *Semaphore
 	BufferBindCount      uint32
-	PBufferBinds         []SparseBufferMemoryBindInfo
+	PBufferBinds         *SparseBufferMemoryBindInfo
 	ImageOpaqueBindCount uint32
-	PImageOpaqueBinds    []SparseImageOpaqueMemoryBindInfo
+	PImageOpaqueBinds    *SparseImageOpaqueMemoryBindInfo
 	ImageBindCount       uint32
-	PImageBinds          []SparseImageMemoryBindInfo
+	PImageBinds          *SparseImageMemoryBindInfo
 	SignalSemaphoreCount uint32
-	PSignalSemaphores    []Semaphore
-	refb0cbe910          *C.VkBindSparseInfo
-	allocsb0cbe910       interface{}
+	PSignalSemaphores    *Semaphore
 }
 
 // FenceCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkFenceCreateInfo.html
@@ -773,8 +772,6 @@ type FenceCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Flags          FenceCreateFlags
-	refb8ff4840    *C.VkFenceCreateInfo
-	allocsb8ff4840 interface{}
 }
 
 // SemaphoreCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSemaphoreCreateInfo.html
@@ -782,8 +779,6 @@ type SemaphoreCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Flags          SemaphoreCreateFlags
-	reff130cd2b    *C.VkSemaphoreCreateInfo
-	allocsf130cd2b interface{}
 }
 
 // EventCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkEventCreateInfo.html
@@ -791,8 +786,6 @@ type EventCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Flags          EventCreateFlags
-	refa54f9ec8    *C.VkEventCreateInfo
-	allocsa54f9ec8 interface{}
 }
 
 // QueryPoolCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkQueryPoolCreateInfo.html
@@ -803,8 +796,6 @@ type QueryPoolCreateInfo struct {
 	QueryType          QueryType
 	QueryCount         uint32
 	PipelineStatistics QueryPipelineStatisticFlags
-	ref85dfcd4a        *C.VkQueryPoolCreateInfo
-	allocs85dfcd4a     interface{}
 }
 
 // BufferCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBufferCreateInfo.html
@@ -816,9 +807,7 @@ type BufferCreateInfo struct {
 	Usage                 BufferUsageFlags
 	SharingMode           SharingMode
 	QueueFamilyIndexCount uint32
-	PQueueFamilyIndices   []uint32
-	reffe19d2cd           *C.VkBufferCreateInfo
-	allocsfe19d2cd        interface{}
+	PQueueFamilyIndices   *uint32
 }
 
 // BufferViewCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBufferViewCreateInfo.html
@@ -830,8 +819,6 @@ type BufferViewCreateInfo struct {
 	Format         Format
 	Offset         DeviceSize
 	Range          DeviceSize
-	ref49b97027    *C.VkBufferViewCreateInfo
-	allocs49b97027 interface{}
 }
 
 // ImageCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageCreateInfo.html
@@ -849,10 +836,8 @@ type ImageCreateInfo struct {
 	Usage                 ImageUsageFlags
 	SharingMode           SharingMode
 	QueueFamilyIndexCount uint32
-	PQueueFamilyIndices   []uint32
+	PQueueFamilyIndices   *uint32
 	InitialLayout         ImageLayout
-	reffb587ba1           *C.VkImageCreateInfo
-	allocsfb587ba1        interface{}
 }
 
 // SubresourceLayout as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSubresourceLayout.html
@@ -862,8 +847,6 @@ type SubresourceLayout struct {
 	RowPitch       DeviceSize
 	ArrayPitch     DeviceSize
 	DepthPitch     DeviceSize
-	ref182612ad    *C.VkSubresourceLayout
-	allocs182612ad interface{}
 }
 
 // ComponentMapping as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkComponentMapping.html
@@ -872,8 +855,6 @@ type ComponentMapping struct {
 	G              ComponentSwizzle
 	B              ComponentSwizzle
 	A              ComponentSwizzle
-	ref63d3d563    *C.VkComponentMapping
-	allocs63d3d563 interface{}
 }
 
 // ImageSubresourceRange as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageSubresourceRange.html
@@ -883,8 +864,6 @@ type ImageSubresourceRange struct {
 	LevelCount     uint32
 	BaseArrayLayer uint32
 	LayerCount     uint32
-	ref5aa1126     *C.VkImageSubresourceRange
-	allocs5aa1126  interface{}
 }
 
 // ImageViewCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageViewCreateInfo.html
@@ -897,8 +876,6 @@ type ImageViewCreateInfo struct {
 	Format           Format
 	Components       ComponentMapping
 	SubresourceRange ImageSubresourceRange
-	ref77e8d4b8      *C.VkImageViewCreateInfo
-	allocs77e8d4b8   interface{}
 }
 
 // ShaderModuleCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkShaderModuleCreateInfo.html
@@ -907,9 +884,7 @@ type ShaderModuleCreateInfo struct {
 	PNext          unsafe.Pointer
 	Flags          ShaderModuleCreateFlags
 	CodeSize       uint
-	PCode          []uint32
-	refc663d23e    *C.VkShaderModuleCreateInfo
-	allocsc663d23e interface{}
+	PCode          *uint32
 }
 
 // PipelineCacheCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineCacheCreateInfo.html
@@ -919,8 +894,6 @@ type PipelineCacheCreateInfo struct {
 	Flags           PipelineCacheCreateFlags
 	InitialDataSize uint
 	PInitialData    unsafe.Pointer
-	reff11e7dd1     *C.VkPipelineCacheCreateInfo
-	allocsf11e7dd1  interface{}
 }
 
 // SpecializationMapEntry as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSpecializationMapEntry.html
@@ -928,18 +901,14 @@ type SpecializationMapEntry struct {
 	ConstantID     uint32
 	Offset         uint32
 	Size           uint
-	ref2fd815d1    *C.VkSpecializationMapEntry
-	allocs2fd815d1 interface{}
 }
 
 // SpecializationInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSpecializationInfo.html
 type SpecializationInfo struct {
 	MapEntryCount  uint32
-	PMapEntries    []SpecializationMapEntry
+	PMapEntries    *SpecializationMapEntry
 	DataSize       uint
 	PData          unsafe.Pointer
-	ref6bc395a3    *C.VkSpecializationInfo
-	allocs6bc395a3 interface{}
 }
 
 // PipelineShaderStageCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineShaderStageCreateInfo.html
@@ -949,10 +918,8 @@ type PipelineShaderStageCreateInfo struct {
 	Flags               PipelineShaderStageCreateFlags
 	Stage               ShaderStageFlagBits
 	Module              ShaderModule
-	PName               string
-	PSpecializationInfo []SpecializationInfo
-	ref50ba8b60         *C.VkPipelineShaderStageCreateInfo
-	allocs50ba8b60      interface{}
+	PName               *C.char
+	PSpecializationInfo *SpecializationInfo
 }
 
 // VertexInputBindingDescription as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkVertexInputBindingDescription.html
@@ -960,8 +927,6 @@ type VertexInputBindingDescription struct {
 	Binding        uint32
 	Stride         uint32
 	InputRate      VertexInputRate
-	ref5c9d8c23    *C.VkVertexInputBindingDescription
-	allocs5c9d8c23 interface{}
 }
 
 // VertexInputAttributeDescription as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkVertexInputAttributeDescription.html
@@ -970,8 +935,6 @@ type VertexInputAttributeDescription struct {
 	Binding        uint32
 	Format         Format
 	Offset         uint32
-	refdc4635ff    *C.VkVertexInputAttributeDescription
-	allocsdc4635ff interface{}
 }
 
 // PipelineVertexInputStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineVertexInputStateCreateInfo.html
@@ -980,11 +943,9 @@ type PipelineVertexInputStateCreateInfo struct {
 	PNext                           unsafe.Pointer
 	Flags                           PipelineVertexInputStateCreateFlags
 	VertexBindingDescriptionCount   uint32
-	PVertexBindingDescriptions      []VertexInputBindingDescription
+	PVertexBindingDescriptions      *VertexInputBindingDescription
 	VertexAttributeDescriptionCount uint32
-	PVertexAttributeDescriptions    []VertexInputAttributeDescription
-	ref5fe4aa50                     *C.VkPipelineVertexInputStateCreateInfo
-	allocs5fe4aa50                  interface{}
+	PVertexAttributeDescriptions    *VertexInputAttributeDescription
 }
 
 // PipelineInputAssemblyStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineInputAssemblyStateCreateInfo.html
@@ -994,8 +955,6 @@ type PipelineInputAssemblyStateCreateInfo struct {
 	Flags                  PipelineInputAssemblyStateCreateFlags
 	Topology               PrimitiveTopology
 	PrimitiveRestartEnable Bool32
-	ref22e1691d            *C.VkPipelineInputAssemblyStateCreateInfo
-	allocs22e1691d         interface{}
 }
 
 // PipelineTessellationStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineTessellationStateCreateInfo.html
@@ -1004,8 +963,6 @@ type PipelineTessellationStateCreateInfo struct {
 	PNext              unsafe.Pointer
 	Flags              PipelineTessellationStateCreateFlags
 	PatchControlPoints uint32
-	ref4ef3997a        *C.VkPipelineTessellationStateCreateInfo
-	allocs4ef3997a     interface{}
 }
 
 // Viewport as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkViewport.html
@@ -1016,32 +973,24 @@ type Viewport struct {
 	Height         float32
 	MinDepth       float32
 	MaxDepth       float32
-	ref75cf5291    *C.VkViewport
-	allocs75cf5291 interface{}
 }
 
 // Offset2D as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkOffset2D.html
 type Offset2D struct {
 	X              int32
 	Y              int32
-	ref32734883    *C.VkOffset2D
-	allocs32734883 interface{}
 }
 
 // Extent2D as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExtent2D.html
 type Extent2D struct {
 	Width          uint32
 	Height         uint32
-	refe2edf56b    *C.VkExtent2D
-	allocse2edf56b interface{}
 }
 
 // Rect2D as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRect2D.html
 type Rect2D struct {
 	Offset         Offset2D
 	Extent         Extent2D
-	ref89e4256f    *C.VkRect2D
-	allocs89e4256f interface{}
 }
 
 // PipelineViewportStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportStateCreateInfo.html
@@ -1050,11 +999,9 @@ type PipelineViewportStateCreateInfo struct {
 	PNext          unsafe.Pointer
 	Flags          PipelineViewportStateCreateFlags
 	ViewportCount  uint32
-	PViewports     []Viewport
+	PViewports     *Viewport
 	ScissorCount   uint32
-	PScissors      []Rect2D
-	refc4705791    *C.VkPipelineViewportStateCreateInfo
-	allocsc4705791 interface{}
+	PScissors      *Rect2D
 }
 
 // PipelineRasterizationStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineRasterizationStateCreateInfo.html
@@ -1072,8 +1019,6 @@ type PipelineRasterizationStateCreateInfo struct {
 	DepthBiasClamp          float32
 	DepthBiasSlopeFactor    float32
 	LineWidth               float32
-	ref48cb9fad             *C.VkPipelineRasterizationStateCreateInfo
-	allocs48cb9fad          interface{}
 }
 
 // PipelineMultisampleStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineMultisampleStateCreateInfo.html
@@ -1084,11 +1029,9 @@ type PipelineMultisampleStateCreateInfo struct {
 	RasterizationSamples  SampleCountFlagBits
 	SampleShadingEnable   Bool32
 	MinSampleShading      float32
-	PSampleMask           []SampleMask
+	PSampleMask           *SampleMask
 	AlphaToCoverageEnable Bool32
 	AlphaToOneEnable      Bool32
-	refb6538bfb           *C.VkPipelineMultisampleStateCreateInfo
-	allocsb6538bfb        interface{}
 }
 
 // StencilOpState as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkStencilOpState.html
@@ -1100,8 +1043,6 @@ type StencilOpState struct {
 	CompareMask    uint32
 	WriteMask      uint32
 	Reference      uint32
-	ref28886871    *C.VkStencilOpState
-	allocs28886871 interface{}
 }
 
 // PipelineDepthStencilStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineDepthStencilStateCreateInfo.html
@@ -1118,8 +1059,6 @@ type PipelineDepthStencilStateCreateInfo struct {
 	Back                  StencilOpState
 	MinDepthBounds        float32
 	MaxDepthBounds        float32
-	refeabfcf1            *C.VkPipelineDepthStencilStateCreateInfo
-	allocseabfcf1         interface{}
 }
 
 // PipelineColorBlendAttachmentState as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineColorBlendAttachmentState.html
@@ -1132,8 +1071,6 @@ type PipelineColorBlendAttachmentState struct {
 	DstAlphaBlendFactor BlendFactor
 	AlphaBlendOp        BlendOp
 	ColorWriteMask      ColorComponentFlags
-	ref9e889477         *C.VkPipelineColorBlendAttachmentState
-	allocs9e889477      interface{}
 }
 
 // PipelineColorBlendStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineColorBlendStateCreateInfo.html
@@ -1144,10 +1081,8 @@ type PipelineColorBlendStateCreateInfo struct {
 	LogicOpEnable   Bool32
 	LogicOp         LogicOp
 	AttachmentCount uint32
-	PAttachments    []PipelineColorBlendAttachmentState
+	PAttachments    *PipelineColorBlendAttachmentState
 	BlendConstants  [4]float32
-	ref2a9b490b     *C.VkPipelineColorBlendStateCreateInfo
-	allocs2a9b490b  interface{}
 }
 
 // PipelineDynamicStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineDynamicStateCreateInfo.html
@@ -1156,9 +1091,7 @@ type PipelineDynamicStateCreateInfo struct {
 	PNext             unsafe.Pointer
 	Flags             PipelineDynamicStateCreateFlags
 	DynamicStateCount uint32
-	PDynamicStates    []DynamicState
-	ref246d7bc8       *C.VkPipelineDynamicStateCreateInfo
-	allocs246d7bc8    interface{}
+	PDynamicStates    *DynamicState
 }
 
 // GraphicsPipelineCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkGraphicsPipelineCreateInfo.html
@@ -1167,7 +1100,7 @@ type GraphicsPipelineCreateInfo struct {
 	PNext               unsafe.Pointer
 	Flags               PipelineCreateFlags
 	StageCount          uint32
-	PStages             []PipelineShaderStageCreateInfo
+	PStages             *PipelineShaderStageCreateInfo
 	PVertexInputState   *PipelineVertexInputStateCreateInfo
 	PInputAssemblyState *PipelineInputAssemblyStateCreateInfo
 	PTessellationState  *PipelineTessellationStateCreateInfo
@@ -1182,8 +1115,6 @@ type GraphicsPipelineCreateInfo struct {
 	Subpass             uint32
 	BasePipelineHandle  Pipeline
 	BasePipelineIndex   int32
-	ref178f88b6         *C.VkGraphicsPipelineCreateInfo
-	allocs178f88b6      interface{}
 }
 
 // ComputePipelineCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkComputePipelineCreateInfo.html
@@ -1195,8 +1126,6 @@ type ComputePipelineCreateInfo struct {
 	Layout             PipelineLayout
 	BasePipelineHandle Pipeline
 	BasePipelineIndex  int32
-	ref77823220        *C.VkComputePipelineCreateInfo
-	allocs77823220     interface{}
 }
 
 // PushConstantRange as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPushConstantRange.html
@@ -1204,8 +1133,6 @@ type PushConstantRange struct {
 	StageFlags     ShaderStageFlags
 	Offset         uint32
 	Size           uint32
-	ref6f025856    *C.VkPushConstantRange
-	allocs6f025856 interface{}
 }
 
 // PipelineLayoutCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineLayoutCreateInfo.html
@@ -1214,11 +1141,9 @@ type PipelineLayoutCreateInfo struct {
 	PNext                  unsafe.Pointer
 	Flags                  PipelineLayoutCreateFlags
 	SetLayoutCount         uint32
-	PSetLayouts            []DescriptorSetLayout
+	PSetLayouts            *DescriptorSetLayout
 	PushConstantRangeCount uint32
-	PPushConstantRanges    []PushConstantRange
-	ref64cc4eed            *C.VkPipelineLayoutCreateInfo
-	allocs64cc4eed         interface{}
+	PPushConstantRanges    *PushConstantRange
 }
 
 // SamplerCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSamplerCreateInfo.html
@@ -1241,8 +1166,6 @@ type SamplerCreateInfo struct {
 	MaxLod                  float32
 	BorderColor             BorderColor
 	UnnormalizedCoordinates Bool32
-	refce034abf             *C.VkSamplerCreateInfo
-	allocsce034abf          interface{}
 }
 
 // DescriptorSetLayoutBinding as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorSetLayoutBinding.html
@@ -1251,9 +1174,7 @@ type DescriptorSetLayoutBinding struct {
 	DescriptorType     DescriptorType
 	DescriptorCount    uint32
 	StageFlags         ShaderStageFlags
-	PImmutableSamplers []Sampler
-	ref8b50b4ec        *C.VkDescriptorSetLayoutBinding
-	allocs8b50b4ec     interface{}
+	PImmutableSamplers *Sampler
 }
 
 // DescriptorSetLayoutCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorSetLayoutCreateInfo.html
@@ -1262,17 +1183,13 @@ type DescriptorSetLayoutCreateInfo struct {
 	PNext          unsafe.Pointer
 	Flags          DescriptorSetLayoutCreateFlags
 	BindingCount   uint32
-	PBindings      []DescriptorSetLayoutBinding
-	ref5ee8e0ed    *C.VkDescriptorSetLayoutCreateInfo
-	allocs5ee8e0ed interface{}
+	PBindings      *DescriptorSetLayoutBinding
 }
 
 // DescriptorPoolSize as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorPoolSize.html
 type DescriptorPoolSize struct {
 	Type            DescriptorType
 	DescriptorCount uint32
-	refe15137da     *C.VkDescriptorPoolSize
-	allocse15137da  interface{}
 }
 
 // DescriptorPoolCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorPoolCreateInfo.html
@@ -1282,9 +1199,7 @@ type DescriptorPoolCreateInfo struct {
 	Flags          DescriptorPoolCreateFlags
 	MaxSets        uint32
 	PoolSizeCount  uint32
-	PPoolSizes     []DescriptorPoolSize
-	ref19868463    *C.VkDescriptorPoolCreateInfo
-	allocs19868463 interface{}
+	PPoolSizes     *DescriptorPoolSize
 }
 
 // DescriptorSetAllocateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorSetAllocateInfo.html
@@ -1293,9 +1208,7 @@ type DescriptorSetAllocateInfo struct {
 	PNext              unsafe.Pointer
 	DescriptorPool     DescriptorPool
 	DescriptorSetCount uint32
-	PSetLayouts        []DescriptorSetLayout
-	ref2dd6cc22        *C.VkDescriptorSetAllocateInfo
-	allocs2dd6cc22     interface{}
+	PSetLayouts        *DescriptorSetLayout
 }
 
 // DescriptorImageInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorImageInfo.html
@@ -1303,8 +1216,6 @@ type DescriptorImageInfo struct {
 	Sampler        Sampler
 	ImageView      ImageView
 	ImageLayout    ImageLayout
-	refaf073b07    *C.VkDescriptorImageInfo
-	allocsaf073b07 interface{}
 }
 
 // DescriptorBufferInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorBufferInfo.html
@@ -1312,8 +1223,6 @@ type DescriptorBufferInfo struct {
 	Buffer         Buffer
 	Offset         DeviceSize
 	Range          DeviceSize
-	refe64bec0e    *C.VkDescriptorBufferInfo
-	allocse64bec0e interface{}
 }
 
 // WriteDescriptorSet as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkWriteDescriptorSet.html
@@ -1325,11 +1234,9 @@ type WriteDescriptorSet struct {
 	DstArrayElement  uint32
 	DescriptorCount  uint32
 	DescriptorType   DescriptorType
-	PImageInfo       []DescriptorImageInfo
-	PBufferInfo      []DescriptorBufferInfo
-	PTexelBufferView []BufferView
-	ref3cec3f3f      *C.VkWriteDescriptorSet
-	allocs3cec3f3f   interface{}
+	PImageInfo       *DescriptorImageInfo
+	PBufferInfo      *DescriptorBufferInfo
+	PTexelBufferView *BufferView
 }
 
 // CopyDescriptorSet as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCopyDescriptorSet.html
@@ -1343,8 +1250,6 @@ type CopyDescriptorSet struct {
 	DstBinding      uint32
 	DstArrayElement uint32
 	DescriptorCount uint32
-	reffe237a3a     *C.VkCopyDescriptorSet
-	allocsfe237a3a  interface{}
 }
 
 // FramebufferCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkFramebufferCreateInfo.html
@@ -1354,12 +1259,10 @@ type FramebufferCreateInfo struct {
 	Flags           FramebufferCreateFlags
 	RenderPass      RenderPass
 	AttachmentCount uint32
-	PAttachments    []ImageView
+	PAttachments    *ImageView
 	Width           uint32
 	Height          uint32
 	Layers          uint32
-	refa3ad85cc     *C.VkFramebufferCreateInfo
-	allocsa3ad85cc  interface{}
 }
 
 // AttachmentDescription as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkAttachmentDescription.html
@@ -1373,16 +1276,12 @@ type AttachmentDescription struct {
 	StencilStoreOp AttachmentStoreOp
 	InitialLayout  ImageLayout
 	FinalLayout    ImageLayout
-	refa5d685fc    *C.VkAttachmentDescription
-	allocsa5d685fc interface{}
 }
 
 // AttachmentReference as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkAttachmentReference.html
 type AttachmentReference struct {
 	Attachment     uint32
 	Layout         ImageLayout
-	refef4776de    *C.VkAttachmentReference
-	allocsef4776de interface{}
 }
 
 // SubpassDescription as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSubpassDescription.html
@@ -1390,15 +1289,13 @@ type SubpassDescription struct {
 	Flags                   SubpassDescriptionFlags
 	PipelineBindPoint       PipelineBindPoint
 	InputAttachmentCount    uint32
-	PInputAttachments       []AttachmentReference
+	PInputAttachments       *AttachmentReference
 	ColorAttachmentCount    uint32
-	PColorAttachments       []AttachmentReference
-	PResolveAttachments     []AttachmentReference
+	PColorAttachments       *AttachmentReference
+	PResolveAttachments     *AttachmentReference
 	PDepthStencilAttachment *AttachmentReference
 	PreserveAttachmentCount uint32
-	PPreserveAttachments    []uint32
-	refc7bfeda              *C.VkSubpassDescription
-	allocsc7bfeda           interface{}
+	PPreserveAttachments    *uint32
 }
 
 // SubpassDependency as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSubpassDependency.html
@@ -1410,8 +1307,6 @@ type SubpassDependency struct {
 	SrcAccessMask   AccessFlags
 	DstAccessMask   AccessFlags
 	DependencyFlags DependencyFlags
-	refdb197adb     *C.VkSubpassDependency
-	allocsdb197adb  interface{}
 }
 
 // RenderPassCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRenderPassCreateInfo.html
@@ -1420,13 +1315,11 @@ type RenderPassCreateInfo struct {
 	PNext           unsafe.Pointer
 	Flags           RenderPassCreateFlags
 	AttachmentCount uint32
-	PAttachments    []AttachmentDescription
+	PAttachments    *AttachmentDescription
 	SubpassCount    uint32
-	PSubpasses      []SubpassDescription
+	PSubpasses      *SubpassDescription
 	DependencyCount uint32
-	PDependencies   []SubpassDependency
-	ref886d7d86     *C.VkRenderPassCreateInfo
-	allocs886d7d86  interface{}
+	PDependencies   *SubpassDependency
 }
 
 // CommandPoolCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCommandPoolCreateInfo.html
@@ -1435,8 +1328,6 @@ type CommandPoolCreateInfo struct {
 	PNext            unsafe.Pointer
 	Flags            CommandPoolCreateFlags
 	QueueFamilyIndex uint32
-	ref73550de0      *C.VkCommandPoolCreateInfo
-	allocs73550de0   interface{}
 }
 
 // CommandBufferAllocateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCommandBufferAllocateInfo.html
@@ -1446,8 +1337,6 @@ type CommandBufferAllocateInfo struct {
 	CommandPool        CommandPool
 	Level              CommandBufferLevel
 	CommandBufferCount uint32
-	refd1a0a7c8        *C.VkCommandBufferAllocateInfo
-	allocsd1a0a7c8     interface{}
 }
 
 // CommandBufferInheritanceInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCommandBufferInheritanceInfo.html
@@ -1460,8 +1349,6 @@ type CommandBufferInheritanceInfo struct {
 	OcclusionQueryEnable Bool32
 	QueryFlags           QueryControlFlags
 	PipelineStatistics   QueryPipelineStatisticFlags
-	ref737f8019          *C.VkCommandBufferInheritanceInfo
-	allocs737f8019       interface{}
 }
 
 // CommandBufferBeginInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCommandBufferBeginInfo.html
@@ -1469,9 +1356,7 @@ type CommandBufferBeginInfo struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	Flags            CommandBufferUsageFlags
-	PInheritanceInfo []CommandBufferInheritanceInfo
-	ref266762df      *C.VkCommandBufferBeginInfo
-	allocs266762df   interface{}
+	PInheritanceInfo *CommandBufferInheritanceInfo
 }
 
 // BufferCopy as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBufferCopy.html
@@ -1479,8 +1364,6 @@ type BufferCopy struct {
 	SrcOffset      DeviceSize
 	DstOffset      DeviceSize
 	Size           DeviceSize
-	ref12184ffd    *C.VkBufferCopy
-	allocs12184ffd interface{}
 }
 
 // ImageSubresourceLayers as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageSubresourceLayers.html
@@ -1489,8 +1372,6 @@ type ImageSubresourceLayers struct {
 	MipLevel       uint32
 	BaseArrayLayer uint32
 	LayerCount     uint32
-	ref3b13bcd2    *C.VkImageSubresourceLayers
-	allocs3b13bcd2 interface{}
 }
 
 // ImageCopy as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageCopy.html
@@ -1500,8 +1381,6 @@ type ImageCopy struct {
 	DstSubresource ImageSubresourceLayers
 	DstOffset      Offset3D
 	Extent         Extent3D
-	ref4e7a1214    *C.VkImageCopy
-	allocs4e7a1214 interface{}
 }
 
 // ImageBlit as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageBlit.html
@@ -1510,8 +1389,6 @@ type ImageBlit struct {
 	SrcOffsets     [2]Offset3D
 	DstSubresource ImageSubresourceLayers
 	DstOffsets     [2]Offset3D
-	ref11311e8d    *C.VkImageBlit
-	allocs11311e8d interface{}
 }
 
 // BufferImageCopy as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBufferImageCopy.html
@@ -1522,8 +1399,6 @@ type BufferImageCopy struct {
 	ImageSubresource  ImageSubresourceLayers
 	ImageOffset       Offset3D
 	ImageExtent       Extent3D
-	ref6d50e36e       *C.VkBufferImageCopy
-	allocs6d50e36e    interface{}
 }
 
 // ClearColorValue as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkClearColorValue.html
@@ -1535,8 +1410,6 @@ type ClearColorValue [sizeofClearColorValue]byte
 type ClearDepthStencilValue struct {
 	Depth          float32
 	Stencil        uint32
-	refa7d07c03    *C.VkClearDepthStencilValue
-	allocsa7d07c03 interface{}
 }
 
 // ClearValue as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkClearValue.html
@@ -1549,8 +1422,6 @@ type ClearAttachment struct {
 	AspectMask      ImageAspectFlags
 	ColorAttachment uint32
 	ClearValue      ClearValue
-	refe9150303     *C.VkClearAttachment
-	allocse9150303  interface{}
 }
 
 // ClearRect as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkClearRect.html
@@ -1558,8 +1429,6 @@ type ClearRect struct {
 	Rect           Rect2D
 	BaseArrayLayer uint32
 	LayerCount     uint32
-	ref1d449c8b    *C.VkClearRect
-	allocs1d449c8b interface{}
 }
 
 // ImageResolve as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageResolve.html
@@ -1569,8 +1438,6 @@ type ImageResolve struct {
 	DstSubresource ImageSubresourceLayers
 	DstOffset      Offset3D
 	Extent         Extent3D
-	ref7bda856d    *C.VkImageResolve
-	allocs7bda856d interface{}
 }
 
 // MemoryBarrier as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryBarrier.html
@@ -1579,8 +1446,6 @@ type MemoryBarrier struct {
 	PNext          unsafe.Pointer
 	SrcAccessMask  AccessFlags
 	DstAccessMask  AccessFlags
-	ref977c944e    *C.VkMemoryBarrier
-	allocs977c944e interface{}
 }
 
 // BufferMemoryBarrier as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBufferMemoryBarrier.html
@@ -1594,8 +1459,6 @@ type BufferMemoryBarrier struct {
 	Buffer              Buffer
 	Offset              DeviceSize
 	Size                DeviceSize
-	refeaf4700b         *C.VkBufferMemoryBarrier
-	allocseaf4700b      interface{}
 }
 
 // ImageMemoryBarrier as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageMemoryBarrier.html
@@ -1610,8 +1473,6 @@ type ImageMemoryBarrier struct {
 	DstQueueFamilyIndex uint32
 	Image               Image
 	SubresourceRange    ImageSubresourceRange
-	refd52734ec         *C.VkImageMemoryBarrier
-	allocsd52734ec      interface{}
 }
 
 // RenderPassBeginInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRenderPassBeginInfo.html
@@ -1622,9 +1483,7 @@ type RenderPassBeginInfo struct {
 	Framebuffer     Framebuffer
 	RenderArea      Rect2D
 	ClearValueCount uint32
-	PClearValues    []ClearValue
-	ref3c3752c8     *C.VkRenderPassBeginInfo
-	allocs3c3752c8  interface{}
+	PClearValues    *ClearValue
 }
 
 // DispatchIndirectCommand as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDispatchIndirectCommand.html
@@ -1632,8 +1491,6 @@ type DispatchIndirectCommand struct {
 	X              uint32
 	Y              uint32
 	Z              uint32
-	refd298ba27    *C.VkDispatchIndirectCommand
-	allocsd298ba27 interface{}
 }
 
 // DrawIndexedIndirectCommand as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDrawIndexedIndirectCommand.html
@@ -1643,8 +1500,6 @@ type DrawIndexedIndirectCommand struct {
 	FirstIndex     uint32
 	VertexOffset   int32
 	FirstInstance  uint32
-	ref4c78b5c3    *C.VkDrawIndexedIndirectCommand
-	allocs4c78b5c3 interface{}
 }
 
 // DrawIndirectCommand as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDrawIndirectCommand.html
@@ -1653,24 +1508,18 @@ type DrawIndirectCommand struct {
 	InstanceCount  uint32
 	FirstVertex    uint32
 	FirstInstance  uint32
-	ref2b5b67c4    *C.VkDrawIndirectCommand
-	allocs2b5b67c4 interface{}
 }
 
 // BaseOutStructure as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBaseOutStructure.html
 type BaseOutStructure struct {
 	SType          StructureType
-	PNext          []BaseOutStructure
-	refd536fcd0    *C.VkBaseOutStructure
-	allocsd536fcd0 interface{}
+	PNext          *BaseOutStructure
 }
 
 // BaseInStructure as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBaseInStructure.html
 type BaseInStructure struct {
 	SType          StructureType
-	PNext          []BaseInStructure
-	refeae401a9    *C.VkBaseInStructure
-	allocseae401a9 interface{}
+	PNext          *BaseInStructure
 }
 
 // SamplerYcbcrConversion as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSamplerYcbcrConversion.html
@@ -1726,8 +1575,6 @@ type PhysicalDeviceSubgroupProperties struct {
 	SupportedStages           ShaderStageFlags
 	SupportedOperations       SubgroupFeatureFlags
 	QuadOperationsInAllStages Bool32
-	refb019c29f               *C.VkPhysicalDeviceSubgroupProperties
-	allocsb019c29f            interface{}
 }
 
 // BindBufferMemoryInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBindBufferMemoryInfo.html
@@ -1737,8 +1584,6 @@ type BindBufferMemoryInfo struct {
 	Buffer         Buffer
 	Memory         DeviceMemory
 	MemoryOffset   DeviceSize
-	refd392322d    *C.VkBindBufferMemoryInfo
-	allocsd392322d interface{}
 }
 
 // BindImageMemoryInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBindImageMemoryInfo.html
@@ -1748,8 +1593,6 @@ type BindImageMemoryInfo struct {
 	Image          Image
 	Memory         DeviceMemory
 	MemoryOffset   DeviceSize
-	ref767a2113    *C.VkBindImageMemoryInfo
-	allocs767a2113 interface{}
 }
 
 // PhysicalDevice16BitStorageFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDevice16BitStorageFeatures.html
@@ -1760,8 +1603,6 @@ type PhysicalDevice16BitStorageFeatures struct {
 	UniformAndStorageBuffer16BitAccess Bool32
 	StoragePushConstant16              Bool32
 	StorageInputOutput16               Bool32
-	refa90fed14                        *C.VkPhysicalDevice16BitStorageFeatures
-	allocsa90fed14                     interface{}
 }
 
 // MemoryDedicatedRequirements as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryDedicatedRequirements.html
@@ -1770,8 +1611,6 @@ type MemoryDedicatedRequirements struct {
 	PNext                       unsafe.Pointer
 	PrefersDedicatedAllocation  Bool32
 	RequiresDedicatedAllocation Bool32
-	refaa924122                 *C.VkMemoryDedicatedRequirements
-	allocsaa924122              interface{}
 }
 
 // MemoryDedicatedAllocateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryDedicatedAllocateInfo.html
@@ -1780,8 +1619,6 @@ type MemoryDedicatedAllocateInfo struct {
 	PNext          unsafe.Pointer
 	Image          Image
 	Buffer         Buffer
-	reff8fabe62    *C.VkMemoryDedicatedAllocateInfo
-	allocsf8fabe62 interface{}
 }
 
 // MemoryAllocateFlagsInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryAllocateFlagsInfo.html
@@ -1790,8 +1627,6 @@ type MemoryAllocateFlagsInfo struct {
 	PNext         unsafe.Pointer
 	Flags         MemoryAllocateFlags
 	DeviceMask    uint32
-	ref7ca6664    *C.VkMemoryAllocateFlagsInfo
-	allocs7ca6664 interface{}
 }
 
 // DeviceGroupRenderPassBeginInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceGroupRenderPassBeginInfo.html
@@ -1800,9 +1635,7 @@ type DeviceGroupRenderPassBeginInfo struct {
 	PNext                 unsafe.Pointer
 	DeviceMask            uint32
 	DeviceRenderAreaCount uint32
-	PDeviceRenderAreas    []Rect2D
-	ref139f3599           *C.VkDeviceGroupRenderPassBeginInfo
-	allocs139f3599        interface{}
+	PDeviceRenderAreas    *Rect2D
 }
 
 // DeviceGroupCommandBufferBeginInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceGroupCommandBufferBeginInfo.html
@@ -1810,8 +1643,6 @@ type DeviceGroupCommandBufferBeginInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	DeviceMask     uint32
-	refb9a8f0cd    *C.VkDeviceGroupCommandBufferBeginInfo
-	allocsb9a8f0cd interface{}
 }
 
 // DeviceGroupSubmitInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceGroupSubmitInfo.html
@@ -1819,13 +1650,11 @@ type DeviceGroupSubmitInfo struct {
 	SType                         StructureType
 	PNext                         unsafe.Pointer
 	WaitSemaphoreCount            uint32
-	PWaitSemaphoreDeviceIndices   []uint32
+	PWaitSemaphoreDeviceIndices   *uint32
 	CommandBufferCount            uint32
-	PCommandBufferDeviceMasks     []uint32
+	PCommandBufferDeviceMasks     *uint32
 	SignalSemaphoreCount          uint32
-	PSignalSemaphoreDeviceIndices []uint32
-	refea4e7ce4                   *C.VkDeviceGroupSubmitInfo
-	allocsea4e7ce4                interface{}
+	PSignalSemaphoreDeviceIndices *uint32
 }
 
 // DeviceGroupBindSparseInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceGroupBindSparseInfo.html
@@ -1834,8 +1663,6 @@ type DeviceGroupBindSparseInfo struct {
 	PNext               unsafe.Pointer
 	ResourceDeviceIndex uint32
 	MemoryDeviceIndex   uint32
-	ref5b5446cd         *C.VkDeviceGroupBindSparseInfo
-	allocs5b5446cd      interface{}
 }
 
 // BindBufferMemoryDeviceGroupInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBindBufferMemoryDeviceGroupInfo.html
@@ -1843,9 +1670,7 @@ type BindBufferMemoryDeviceGroupInfo struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	DeviceIndexCount uint32
-	PDeviceIndices   []uint32
-	reff136b64f      *C.VkBindBufferMemoryDeviceGroupInfo
-	allocsf136b64f   interface{}
+	PDeviceIndices   *uint32
 }
 
 // BindImageMemoryDeviceGroupInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBindImageMemoryDeviceGroupInfo.html
@@ -1853,11 +1678,9 @@ type BindImageMemoryDeviceGroupInfo struct {
 	SType                        StructureType
 	PNext                        unsafe.Pointer
 	DeviceIndexCount             uint32
-	PDeviceIndices               []uint32
+	PDeviceIndices               *uint32
 	SplitInstanceBindRegionCount uint32
-	PSplitInstanceBindRegions    []Rect2D
-	ref24f026a5                  *C.VkBindImageMemoryDeviceGroupInfo
-	allocs24f026a5               interface{}
+	PSplitInstanceBindRegions    *Rect2D
 }
 
 // PhysicalDeviceGroupProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceGroupProperties.html
@@ -1867,8 +1690,6 @@ type PhysicalDeviceGroupProperties struct {
 	PhysicalDeviceCount uint32
 	PhysicalDevices     [32]PhysicalDevice
 	SubsetAllocation    Bool32
-	ref2aa9a663         *C.VkPhysicalDeviceGroupProperties
-	allocs2aa9a663      interface{}
 }
 
 // DeviceGroupDeviceCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceGroupDeviceCreateInfo.html
@@ -1876,9 +1697,7 @@ type DeviceGroupDeviceCreateInfo struct {
 	SType               StructureType
 	PNext               unsafe.Pointer
 	PhysicalDeviceCount uint32
-	PPhysicalDevices    []PhysicalDevice
-	refb2275723         *C.VkDeviceGroupDeviceCreateInfo
-	allocsb2275723      interface{}
+	PPhysicalDevices    *PhysicalDevice
 }
 
 // BufferMemoryRequirementsInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBufferMemoryRequirementsInfo2.html
@@ -1886,8 +1705,6 @@ type BufferMemoryRequirementsInfo2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Buffer         Buffer
-	reff54a2a42    *C.VkBufferMemoryRequirementsInfo2
-	allocsf54a2a42 interface{}
 }
 
 // ImageMemoryRequirementsInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageMemoryRequirementsInfo2.html
@@ -1895,8 +1712,6 @@ type ImageMemoryRequirementsInfo2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Image          Image
-	ref75b3ca05    *C.VkImageMemoryRequirementsInfo2
-	allocs75b3ca05 interface{}
 }
 
 // ImageSparseMemoryRequirementsInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageSparseMemoryRequirementsInfo2.html
@@ -1904,8 +1719,6 @@ type ImageSparseMemoryRequirementsInfo2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Image          Image
-	ref878956f7    *C.VkImageSparseMemoryRequirementsInfo2
-	allocs878956f7 interface{}
 }
 
 // MemoryRequirements2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryRequirements2.html
@@ -1913,8 +1726,6 @@ type MemoryRequirements2 struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	MemoryRequirements MemoryRequirements
-	refc0e75f21        *C.VkMemoryRequirements2
-	allocsc0e75f21     interface{}
 }
 
 // SparseImageMemoryRequirements2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageMemoryRequirements2.html
@@ -1922,8 +1733,6 @@ type SparseImageMemoryRequirements2 struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	MemoryRequirements SparseImageMemoryRequirements
-	refb8da955c        *C.VkSparseImageMemoryRequirements2
-	allocsb8da955c     interface{}
 }
 
 // PhysicalDeviceFeatures2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceFeatures2.html
@@ -1931,8 +1740,6 @@ type PhysicalDeviceFeatures2 struct {
 	SType         StructureType
 	PNext         unsafe.Pointer
 	Features      PhysicalDeviceFeatures
-	refff6ed04    *C.VkPhysicalDeviceFeatures2
-	allocsff6ed04 interface{}
 }
 
 // PhysicalDeviceProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceProperties2.html
@@ -1940,8 +1747,6 @@ type PhysicalDeviceProperties2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Properties     PhysicalDeviceProperties
-	ref947bd13e    *C.VkPhysicalDeviceProperties2
-	allocs947bd13e interface{}
 }
 
 // FormatProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkFormatProperties2.html
@@ -1949,8 +1754,6 @@ type FormatProperties2 struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	FormatProperties FormatProperties
-	refddc6af2a      *C.VkFormatProperties2
-	allocsddc6af2a   interface{}
 }
 
 // ImageFormatProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageFormatProperties2.html
@@ -1958,8 +1761,6 @@ type ImageFormatProperties2 struct {
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	ImageFormatProperties ImageFormatProperties
-	ref224187e7           *C.VkImageFormatProperties2
-	allocs224187e7        interface{}
 }
 
 // PhysicalDeviceImageFormatInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceImageFormatInfo2.html
@@ -1971,8 +1772,6 @@ type PhysicalDeviceImageFormatInfo2 struct {
 	Tiling         ImageTiling
 	Usage          ImageUsageFlags
 	Flags          ImageCreateFlags
-	ref5934b445    *C.VkPhysicalDeviceImageFormatInfo2
-	allocs5934b445 interface{}
 }
 
 // QueueFamilyProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkQueueFamilyProperties2.html
@@ -1980,8 +1779,6 @@ type QueueFamilyProperties2 struct {
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	QueueFamilyProperties QueueFamilyProperties
-	ref85bf626c           *C.VkQueueFamilyProperties2
-	allocs85bf626c        interface{}
 }
 
 // PhysicalDeviceMemoryProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMemoryProperties2.html
@@ -1989,8 +1786,6 @@ type PhysicalDeviceMemoryProperties2 struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	MemoryProperties PhysicalDeviceMemoryProperties
-	refd9e39b19      *C.VkPhysicalDeviceMemoryProperties2
-	allocsd9e39b19   interface{}
 }
 
 // SparseImageFormatProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSparseImageFormatProperties2.html
@@ -1998,8 +1793,6 @@ type SparseImageFormatProperties2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Properties     SparseImageFormatProperties
-	ref6b48294b    *C.VkSparseImageFormatProperties2
-	allocs6b48294b interface{}
 }
 
 // PhysicalDeviceSparseImageFormatInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceSparseImageFormatInfo2.html
@@ -2011,8 +1804,6 @@ type PhysicalDeviceSparseImageFormatInfo2 struct {
 	Samples        SampleCountFlagBits
 	Usage          ImageUsageFlags
 	Tiling         ImageTiling
-	ref566d5513    *C.VkPhysicalDeviceSparseImageFormatInfo2
-	allocs566d5513 interface{}
 }
 
 // PhysicalDevicePointClippingProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDevicePointClippingProperties.html
@@ -2020,8 +1811,6 @@ type PhysicalDevicePointClippingProperties struct {
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	PointClippingBehavior PointClippingBehavior
-	ref5afbd22f           *C.VkPhysicalDevicePointClippingProperties
-	allocs5afbd22f        interface{}
 }
 
 // InputAttachmentAspectReference as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkInputAttachmentAspectReference.html
@@ -2029,8 +1818,6 @@ type InputAttachmentAspectReference struct {
 	Subpass              uint32
 	InputAttachmentIndex uint32
 	AspectMask           ImageAspectFlags
-	ref4f7194e6          *C.VkInputAttachmentAspectReference
-	allocs4f7194e6       interface{}
 }
 
 // RenderPassInputAttachmentAspectCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRenderPassInputAttachmentAspectCreateInfo.html
@@ -2038,9 +1825,7 @@ type RenderPassInputAttachmentAspectCreateInfo struct {
 	SType                StructureType
 	PNext                unsafe.Pointer
 	AspectReferenceCount uint32
-	PAspectReferences    []InputAttachmentAspectReference
-	ref34eaa5c7          *C.VkRenderPassInputAttachmentAspectCreateInfo
-	allocs34eaa5c7       interface{}
+	PAspectReferences    *InputAttachmentAspectReference
 }
 
 // ImageViewUsageCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageViewUsageCreateInfo.html
@@ -2048,8 +1833,6 @@ type ImageViewUsageCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Usage          ImageUsageFlags
-	ref3791cec9    *C.VkImageViewUsageCreateInfo
-	allocs3791cec9 interface{}
 }
 
 // PipelineTessellationDomainOriginStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineTessellationDomainOriginStateCreateInfo.html
@@ -2057,8 +1840,6 @@ type PipelineTessellationDomainOriginStateCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	DomainOrigin   TessellationDomainOrigin
-	ref58ef29bf    *C.VkPipelineTessellationDomainOriginStateCreateInfo
-	allocs58ef29bf interface{}
 }
 
 // RenderPassMultiviewCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRenderPassMultiviewCreateInfo.html
@@ -2066,13 +1847,11 @@ type RenderPassMultiviewCreateInfo struct {
 	SType                StructureType
 	PNext                unsafe.Pointer
 	SubpassCount         uint32
-	PViewMasks           []uint32
+	PViewMasks           *uint32
 	DependencyCount      uint32
-	PViewOffsets         []int32
+	PViewOffsets         *int32
 	CorrelationMaskCount uint32
-	PCorrelationMasks    []uint32
-	refee413e05          *C.VkRenderPassMultiviewCreateInfo
-	allocsee413e05       interface{}
+	PCorrelationMasks    *uint32
 }
 
 // PhysicalDeviceMultiviewFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMultiviewFeatures.html
@@ -2082,8 +1861,6 @@ type PhysicalDeviceMultiviewFeatures struct {
 	Multiview                   Bool32
 	MultiviewGeometryShader     Bool32
 	MultiviewTessellationShader Bool32
-	refd7a7434b                 *C.VkPhysicalDeviceMultiviewFeatures
-	allocsd7a7434b              interface{}
 }
 
 // PhysicalDeviceMultiviewProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMultiviewProperties.html
@@ -2092,8 +1869,6 @@ type PhysicalDeviceMultiviewProperties struct {
 	PNext                     unsafe.Pointer
 	MaxMultiviewViewCount     uint32
 	MaxMultiviewInstanceIndex uint32
-	ref95110029               *C.VkPhysicalDeviceMultiviewProperties
-	allocs95110029            interface{}
 }
 
 // PhysicalDeviceVariablePointerFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceVariablePointerFeatures.html
@@ -2102,8 +1877,6 @@ type PhysicalDeviceVariablePointerFeatures struct {
 	PNext                         unsafe.Pointer
 	VariablePointersStorageBuffer Bool32
 	VariablePointers              Bool32
-	refdedd8372                   *C.VkPhysicalDeviceVariablePointerFeatures
-	allocsdedd8372                interface{}
 }
 
 // PhysicalDeviceProtectedMemoryFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceProtectedMemoryFeatures.html
@@ -2111,8 +1884,6 @@ type PhysicalDeviceProtectedMemoryFeatures struct {
 	SType           StructureType
 	PNext           unsafe.Pointer
 	ProtectedMemory Bool32
-	refac441ed1     *C.VkPhysicalDeviceProtectedMemoryFeatures
-	allocsac441ed1  interface{}
 }
 
 // PhysicalDeviceProtectedMemoryProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceProtectedMemoryProperties.html
@@ -2120,8 +1891,6 @@ type PhysicalDeviceProtectedMemoryProperties struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	ProtectedNoFault Bool32
-	refb653413       *C.VkPhysicalDeviceProtectedMemoryProperties
-	allocsb653413    interface{}
 }
 
 // DeviceQueueInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceQueueInfo2.html
@@ -2131,8 +1900,6 @@ type DeviceQueueInfo2 struct {
 	Flags            DeviceQueueCreateFlags
 	QueueFamilyIndex uint32
 	QueueIndex       uint32
-	ref2f267e52      *C.VkDeviceQueueInfo2
-	allocs2f267e52   interface{}
 }
 
 // ProtectedSubmitInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkProtectedSubmitInfo.html
@@ -2140,8 +1907,6 @@ type ProtectedSubmitInfo struct {
 	SType           StructureType
 	PNext           unsafe.Pointer
 	ProtectedSubmit Bool32
-	ref6bd69669     *C.VkProtectedSubmitInfo
-	allocs6bd69669  interface{}
 }
 
 // SamplerYcbcrConversionCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSamplerYcbcrConversionCreateInfo.html
@@ -2156,8 +1921,6 @@ type SamplerYcbcrConversionCreateInfo struct {
 	YChromaOffset               ChromaLocation
 	ChromaFilter                Filter
 	ForceExplicitReconstruction Bool32
-	ref9875bff7                 *C.VkSamplerYcbcrConversionCreateInfo
-	allocs9875bff7              interface{}
 }
 
 // SamplerYcbcrConversionInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSamplerYcbcrConversionInfo.html
@@ -2165,8 +1928,6 @@ type SamplerYcbcrConversionInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Conversion     SamplerYcbcrConversion
-	ref11ff5547    *C.VkSamplerYcbcrConversionInfo
-	allocs11ff5547 interface{}
 }
 
 // BindImagePlaneMemoryInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkBindImagePlaneMemoryInfo.html
@@ -2174,8 +1935,6 @@ type BindImagePlaneMemoryInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	PlaneAspect    ImageAspectFlagBits
-	ref56b81476    *C.VkBindImagePlaneMemoryInfo
-	allocs56b81476 interface{}
 }
 
 // ImagePlaneMemoryRequirementsInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImagePlaneMemoryRequirementsInfo.html
@@ -2183,8 +1942,6 @@ type ImagePlaneMemoryRequirementsInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	PlaneAspect    ImageAspectFlagBits
-	refefec131f    *C.VkImagePlaneMemoryRequirementsInfo
-	allocsefec131f interface{}
 }
 
 // PhysicalDeviceSamplerYcbcrConversionFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceSamplerYcbcrConversionFeatures.html
@@ -2192,8 +1949,6 @@ type PhysicalDeviceSamplerYcbcrConversionFeatures struct {
 	SType                  StructureType
 	PNext                  unsafe.Pointer
 	SamplerYcbcrConversion Bool32
-	ref1d054d67            *C.VkPhysicalDeviceSamplerYcbcrConversionFeatures
-	allocs1d054d67         interface{}
 }
 
 // SamplerYcbcrConversionImageFormatProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSamplerYcbcrConversionImageFormatProperties.html
@@ -2201,8 +1956,6 @@ type SamplerYcbcrConversionImageFormatProperties struct {
 	SType                               StructureType
 	PNext                               unsafe.Pointer
 	CombinedImageSamplerDescriptorCount uint32
-	ref6bc79530                         *C.VkSamplerYcbcrConversionImageFormatProperties
-	allocs6bc79530                      interface{}
 }
 
 // DescriptorUpdateTemplateEntry as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorUpdateTemplateEntry.html
@@ -2213,8 +1966,6 @@ type DescriptorUpdateTemplateEntry struct {
 	DescriptorType  DescriptorType
 	Offset          uint
 	Stride          uint
-	refabf78fb7     *C.VkDescriptorUpdateTemplateEntry
-	allocsabf78fb7  interface{}
 }
 
 // DescriptorUpdateTemplateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorUpdateTemplateCreateInfo.html
@@ -2223,14 +1974,12 @@ type DescriptorUpdateTemplateCreateInfo struct {
 	PNext                      unsafe.Pointer
 	Flags                      DescriptorUpdateTemplateCreateFlags
 	DescriptorUpdateEntryCount uint32
-	PDescriptorUpdateEntries   []DescriptorUpdateTemplateEntry
+	PDescriptorUpdateEntries   *DescriptorUpdateTemplateEntry
 	TemplateType               DescriptorUpdateTemplateType
 	DescriptorSetLayout        DescriptorSetLayout
 	PipelineBindPoint          PipelineBindPoint
 	PipelineLayout             PipelineLayout
 	Set                        uint32
-	ref2af95951                *C.VkDescriptorUpdateTemplateCreateInfo
-	allocs2af95951             interface{}
 }
 
 // ExternalMemoryProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalMemoryProperties.html
@@ -2238,8 +1987,6 @@ type ExternalMemoryProperties struct {
 	ExternalMemoryFeatures        ExternalMemoryFeatureFlags
 	ExportFromImportedHandleTypes ExternalMemoryHandleTypeFlags
 	CompatibleHandleTypes         ExternalMemoryHandleTypeFlags
-	ref4b738f01                   *C.VkExternalMemoryProperties
-	allocs4b738f01                interface{}
 }
 
 // PhysicalDeviceExternalImageFormatInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceExternalImageFormatInfo.html
@@ -2247,8 +1994,6 @@ type PhysicalDeviceExternalImageFormatInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleType     ExternalMemoryHandleTypeFlagBits
-	refc839c724    *C.VkPhysicalDeviceExternalImageFormatInfo
-	allocsc839c724 interface{}
 }
 
 // ExternalImageFormatProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalImageFormatProperties.html
@@ -2256,8 +2001,6 @@ type ExternalImageFormatProperties struct {
 	SType                    StructureType
 	PNext                    unsafe.Pointer
 	ExternalMemoryProperties ExternalMemoryProperties
-	refd404c4b5              *C.VkExternalImageFormatProperties
-	allocsd404c4b5           interface{}
 }
 
 // PhysicalDeviceExternalBufferInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceExternalBufferInfo.html
@@ -2267,8 +2010,6 @@ type PhysicalDeviceExternalBufferInfo struct {
 	Flags          BufferCreateFlags
 	Usage          BufferUsageFlags
 	HandleType     ExternalMemoryHandleTypeFlagBits
-	ref8d758947    *C.VkPhysicalDeviceExternalBufferInfo
-	allocs8d758947 interface{}
 }
 
 // ExternalBufferProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalBufferProperties.html
@@ -2276,8 +2017,6 @@ type ExternalBufferProperties struct {
 	SType                    StructureType
 	PNext                    unsafe.Pointer
 	ExternalMemoryProperties ExternalMemoryProperties
-	ref12f7c546              *C.VkExternalBufferProperties
-	allocs12f7c546           interface{}
 }
 
 // PhysicalDeviceIDProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceIDProperties.html
@@ -2289,8 +2028,6 @@ type PhysicalDeviceIDProperties struct {
 	DeviceLUID      [8]byte
 	DeviceNodeMask  uint32
 	DeviceLUIDValid Bool32
-	refe990a9f3     *C.VkPhysicalDeviceIDProperties
-	allocse990a9f3  interface{}
 }
 
 // ExternalMemoryImageCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalMemoryImageCreateInfo.html
@@ -2298,8 +2035,6 @@ type ExternalMemoryImageCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleTypes    ExternalMemoryHandleTypeFlags
-	refdaf1185e    *C.VkExternalMemoryImageCreateInfo
-	allocsdaf1185e interface{}
 }
 
 // ExternalMemoryBufferCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalMemoryBufferCreateInfo.html
@@ -2307,8 +2042,6 @@ type ExternalMemoryBufferCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleTypes    ExternalMemoryHandleTypeFlags
-	refd33a9423    *C.VkExternalMemoryBufferCreateInfo
-	allocsd33a9423 interface{}
 }
 
 // ExportMemoryAllocateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExportMemoryAllocateInfo.html
@@ -2316,8 +2049,6 @@ type ExportMemoryAllocateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleTypes    ExternalMemoryHandleTypeFlags
-	refeb76ec64    *C.VkExportMemoryAllocateInfo
-	allocseb76ec64 interface{}
 }
 
 // PhysicalDeviceExternalFenceInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceExternalFenceInfo.html
@@ -2325,8 +2056,6 @@ type PhysicalDeviceExternalFenceInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleType     ExternalFenceHandleTypeFlagBits
-	ref9bb660cc    *C.VkPhysicalDeviceExternalFenceInfo
-	allocs9bb660cc interface{}
 }
 
 // ExternalFenceProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalFenceProperties.html
@@ -2336,8 +2065,6 @@ type ExternalFenceProperties struct {
 	ExportFromImportedHandleTypes ExternalFenceHandleTypeFlags
 	CompatibleHandleTypes         ExternalFenceHandleTypeFlags
 	ExternalFenceFeatures         ExternalFenceFeatureFlags
-	ref18806773                   *C.VkExternalFenceProperties
-	allocs18806773                interface{}
 }
 
 // ExportFenceCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExportFenceCreateInfo.html
@@ -2345,8 +2072,6 @@ type ExportFenceCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleTypes    ExternalFenceHandleTypeFlags
-	ref5fef8c3a    *C.VkExportFenceCreateInfo
-	allocs5fef8c3a interface{}
 }
 
 // ExportSemaphoreCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExportSemaphoreCreateInfo.html
@@ -2354,8 +2079,6 @@ type ExportSemaphoreCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleTypes    ExternalSemaphoreHandleTypeFlags
-	ref17b8d6c5    *C.VkExportSemaphoreCreateInfo
-	allocs17b8d6c5 interface{}
 }
 
 // PhysicalDeviceExternalSemaphoreInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceExternalSemaphoreInfo.html
@@ -2363,8 +2086,6 @@ type PhysicalDeviceExternalSemaphoreInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleType     ExternalSemaphoreHandleTypeFlagBits
-	ref5981d29e    *C.VkPhysicalDeviceExternalSemaphoreInfo
-	allocs5981d29e interface{}
 }
 
 // ExternalSemaphoreProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalSemaphoreProperties.html
@@ -2374,8 +2095,6 @@ type ExternalSemaphoreProperties struct {
 	ExportFromImportedHandleTypes ExternalSemaphoreHandleTypeFlags
 	CompatibleHandleTypes         ExternalSemaphoreHandleTypeFlags
 	ExternalSemaphoreFeatures     ExternalSemaphoreFeatureFlags
-	ref87ec1054                   *C.VkExternalSemaphoreProperties
-	allocs87ec1054                interface{}
 }
 
 // PhysicalDeviceMaintenance3Properties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMaintenance3Properties.html
@@ -2384,8 +2103,6 @@ type PhysicalDeviceMaintenance3Properties struct {
 	PNext                   unsafe.Pointer
 	MaxPerSetDescriptors    uint32
 	MaxMemoryAllocationSize DeviceSize
-	ref12c07777             *C.VkPhysicalDeviceMaintenance3Properties
-	allocs12c07777          interface{}
 }
 
 // DescriptorSetLayoutSupport as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorSetLayoutSupport.html
@@ -2393,8 +2110,6 @@ type DescriptorSetLayoutSupport struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Supported      Bool32
-	ref5802686c    *C.VkDescriptorSetLayoutSupport
-	allocs5802686c interface{}
 }
 
 // PhysicalDeviceShaderDrawParameterFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceShaderDrawParameterFeatures.html
@@ -2402,8 +2117,6 @@ type PhysicalDeviceShaderDrawParameterFeatures struct {
 	SType                StructureType
 	PNext                unsafe.Pointer
 	ShaderDrawParameters Bool32
-	ref23259ea6          *C.VkPhysicalDeviceShaderDrawParameterFeatures
-	allocs23259ea6       interface{}
 }
 
 // Surface as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceKHR
@@ -2427,16 +2140,12 @@ type SurfaceCapabilities struct {
 	CurrentTransform        SurfaceTransformFlagBits
 	SupportedCompositeAlpha CompositeAlphaFlags
 	SupportedUsageFlags     ImageUsageFlags
-	ref11d5f596             *C.VkSurfaceCapabilitiesKHR
-	allocs11d5f596          interface{}
 }
 
 // SurfaceFormat as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceFormatKHR
 type SurfaceFormat struct {
 	Format         Format
 	ColorSpace     ColorSpace
-	refedaf82ca    *C.VkSurfaceFormatKHR
-	allocsedaf82ca interface{}
 }
 
 // Swapchain as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSwapchainKHR
@@ -2462,14 +2171,12 @@ type SwapchainCreateInfo struct {
 	ImageUsage            ImageUsageFlags
 	ImageSharingMode      SharingMode
 	QueueFamilyIndexCount uint32
-	PQueueFamilyIndices   []uint32
+	PQueueFamilyIndices   *uint32
 	PreTransform          SurfaceTransformFlagBits
 	CompositeAlpha        CompositeAlphaFlagBits
 	PresentMode           PresentMode
 	Clipped               Bool32
 	OldSwapchain          Swapchain
-	refdb619e1c           *C.VkSwapchainCreateInfoKHR
-	allocsdb619e1c        interface{}
 }
 
 // PresentInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPresentInfoKHR
@@ -2477,13 +2184,11 @@ type PresentInfo struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	WaitSemaphoreCount uint32
-	PWaitSemaphores    []Semaphore
+	PWaitSemaphores    *Semaphore
 	SwapchainCount     uint32
-	PSwapchains        []Swapchain
-	PImageIndices      []uint32
-	PResults           []Result
-	ref1d0e82d4        *C.VkPresentInfoKHR
-	allocs1d0e82d4     interface{}
+	PSwapchains        *Swapchain
+	PImageIndices      *uint32
+	PResults           *Result
 }
 
 // ImageSwapchainCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkImageSwapchainCreateInfoKHR
@@ -2491,8 +2196,6 @@ type ImageSwapchainCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Swapchain      Swapchain
-	refd83cc5d0    *C.VkImageSwapchainCreateInfoKHR
-	allocsd83cc5d0 interface{}
 }
 
 // BindImageMemorySwapchainInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkBindImageMemorySwapchainInfoKHR
@@ -2501,8 +2204,6 @@ type BindImageMemorySwapchainInfo struct {
 	PNext          unsafe.Pointer
 	Swapchain      Swapchain
 	ImageIndex     uint32
-	ref1aa25cb6    *C.VkBindImageMemorySwapchainInfoKHR
-	allocs1aa25cb6 interface{}
 }
 
 // AcquireNextImageInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkAcquireNextImageInfoKHR
@@ -2514,8 +2215,6 @@ type AcquireNextImageInfo struct {
 	Semaphore      Semaphore
 	Fence          Fence
 	DeviceMask     uint32
-	ref588806a5    *C.VkAcquireNextImageInfoKHR
-	allocs588806a5 interface{}
 }
 
 // DeviceGroupPresentCapabilities as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDeviceGroupPresentCapabilitiesKHR
@@ -2524,8 +2223,6 @@ type DeviceGroupPresentCapabilities struct {
 	PNext          unsafe.Pointer
 	PresentMask    [32]uint32
 	Modes          DeviceGroupPresentModeFlags
-	refa3962c81    *C.VkDeviceGroupPresentCapabilitiesKHR
-	allocsa3962c81 interface{}
 }
 
 // DeviceGroupPresentInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDeviceGroupPresentInfoKHR
@@ -2533,10 +2230,8 @@ type DeviceGroupPresentInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	SwapchainCount uint32
-	PDeviceMasks   []uint32
+	PDeviceMasks   *uint32
 	Mode           DeviceGroupPresentModeFlagBits
-	reff6912d09    *C.VkDeviceGroupPresentInfoKHR
-	allocsf6912d09 interface{}
 }
 
 // DeviceGroupSwapchainCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDeviceGroupSwapchainCreateInfoKHR
@@ -2544,8 +2239,6 @@ type DeviceGroupSwapchainCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Modes          DeviceGroupPresentModeFlags
-	ref44ae0c0e    *C.VkDeviceGroupSwapchainCreateInfoKHR
-	allocs44ae0c0e interface{}
 }
 
 // Display as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayKHR
@@ -2566,30 +2259,24 @@ type DisplaySurfaceCreateFlags uint32
 // DisplayProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPropertiesKHR
 type DisplayProperties struct {
 	Display              Display
-	DisplayName          string
+	DisplayName          *C.char
 	PhysicalDimensions   Extent2D
 	PhysicalResolution   Extent2D
 	SupportedTransforms  SurfaceTransformFlags
 	PlaneReorderPossible Bool32
 	PersistentContent    Bool32
-	reffe2a7187          *C.VkDisplayPropertiesKHR
-	allocsfe2a7187       interface{}
 }
 
 // DisplayModeParameters as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayModeParametersKHR
 type DisplayModeParameters struct {
 	VisibleRegion  Extent2D
 	RefreshRate    uint32
-	refe016f77f    *C.VkDisplayModeParametersKHR
-	allocse016f77f interface{}
 }
 
 // DisplayModeProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayModePropertiesKHR
 type DisplayModeProperties struct {
 	DisplayMode    DisplayMode
 	Parameters     DisplayModeParameters
-	ref5e3abaaa    *C.VkDisplayModePropertiesKHR
-	allocs5e3abaaa interface{}
 }
 
 // DisplayModeCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayModeCreateInfoKHR
@@ -2598,8 +2285,6 @@ type DisplayModeCreateInfo struct {
 	PNext          unsafe.Pointer
 	Flags          DisplayModeCreateFlags
 	Parameters     DisplayModeParameters
-	ref392fca31    *C.VkDisplayModeCreateInfoKHR
-	allocs392fca31 interface{}
 }
 
 // DisplayPlaneCapabilities as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPlaneCapabilitiesKHR
@@ -2613,16 +2298,12 @@ type DisplayPlaneCapabilities struct {
 	MaxDstPosition Offset2D
 	MinDstExtent   Extent2D
 	MaxDstExtent   Extent2D
-	ref6f31fcaf    *C.VkDisplayPlaneCapabilitiesKHR
-	allocs6f31fcaf interface{}
 }
 
 // DisplayPlaneProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPlanePropertiesKHR
 type DisplayPlaneProperties struct {
 	CurrentDisplay    Display
 	CurrentStackIndex uint32
-	refce3db3f6       *C.VkDisplayPlanePropertiesKHR
-	allocsce3db3f6    interface{}
 }
 
 // DisplaySurfaceCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplaySurfaceCreateInfoKHR
@@ -2637,8 +2318,6 @@ type DisplaySurfaceCreateInfo struct {
 	GlobalAlpha     float32
 	AlphaMode       DisplayPlaneAlphaFlagBits
 	ImageExtent     Extent2D
-	ref58445c35     *C.VkDisplaySurfaceCreateInfoKHR
-	allocs58445c35  interface{}
 }
 
 // DisplayPresentInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPresentInfoKHR
@@ -2648,8 +2327,6 @@ type DisplayPresentInfo struct {
 	SrcRect        Rect2D
 	DstRect        Rect2D
 	Persistent     Bool32
-	ref8d2571e4    *C.VkDisplayPresentInfoKHR
-	allocs8d2571e4 interface{}
 }
 
 // ImportMemoryFdInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkImportMemoryFdInfoKHR
@@ -2658,8 +2335,6 @@ type ImportMemoryFdInfo struct {
 	PNext          unsafe.Pointer
 	HandleType     ExternalMemoryHandleTypeFlagBits
 	Fd             int32
-	ref73f83287    *C.VkImportMemoryFdInfoKHR
-	allocs73f83287 interface{}
 }
 
 // MemoryFdProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkMemoryFdPropertiesKHR
@@ -2667,8 +2342,6 @@ type MemoryFdProperties struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	MemoryTypeBits uint32
-	ref51e16d38    *C.VkMemoryFdPropertiesKHR
-	allocs51e16d38 interface{}
 }
 
 // MemoryGetFdInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkMemoryGetFdInfoKHR
@@ -2677,8 +2350,6 @@ type MemoryGetFdInfo struct {
 	PNext          unsafe.Pointer
 	Memory         DeviceMemory
 	HandleType     ExternalMemoryHandleTypeFlagBits
-	ref75a079b1    *C.VkMemoryGetFdInfoKHR
-	allocs75a079b1 interface{}
 }
 
 // ImportSemaphoreFdInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkImportSemaphoreFdInfoKHR
@@ -2689,8 +2360,6 @@ type ImportSemaphoreFdInfo struct {
 	Flags          SemaphoreImportFlags
 	HandleType     ExternalSemaphoreHandleTypeFlagBits
 	Fd             int32
-	refbc2f829a    *C.VkImportSemaphoreFdInfoKHR
-	allocsbc2f829a interface{}
 }
 
 // SemaphoreGetFdInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSemaphoreGetFdInfoKHR
@@ -2699,8 +2368,6 @@ type SemaphoreGetFdInfo struct {
 	PNext          unsafe.Pointer
 	Semaphore      Semaphore
 	HandleType     ExternalSemaphoreHandleTypeFlagBits
-	refd9bd07cf    *C.VkSemaphoreGetFdInfoKHR
-	allocsd9bd07cf interface{}
 }
 
 // PhysicalDevicePushDescriptorProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPhysicalDevicePushDescriptorPropertiesKHR
@@ -2708,8 +2375,6 @@ type PhysicalDevicePushDescriptorProperties struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	MaxPushDescriptors uint32
-	ref8c58a1a5        *C.VkPhysicalDevicePushDescriptorPropertiesKHR
-	allocs8c58a1a5     interface{}
 }
 
 // RectLayer as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkRectLayerKHR
@@ -2717,16 +2382,12 @@ type RectLayer struct {
 	Offset         Offset2D
 	Extent         Extent2D
 	Layer          uint32
-	refaf248476    *C.VkRectLayerKHR
-	allocsaf248476 interface{}
 }
 
 // PresentRegion as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPresentRegionKHR
 type PresentRegion struct {
 	RectangleCount uint32
-	PRectangles    []RectLayer
-	refbbc0d1b9    *C.VkPresentRegionKHR
-	allocsbbc0d1b9 interface{}
+	PRectangles    *RectLayer
 }
 
 // PresentRegions as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPresentRegionsKHR
@@ -2734,9 +2395,7 @@ type PresentRegions struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	SwapchainCount uint32
-	PRegions       []PresentRegion
-	ref62958060    *C.VkPresentRegionsKHR
-	allocs62958060 interface{}
+	PRegions       *PresentRegion
 }
 
 // AttachmentDescription2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkAttachmentDescription2KHR
@@ -2752,8 +2411,6 @@ type AttachmentDescription2 struct {
 	StencilStoreOp AttachmentStoreOp
 	InitialLayout  ImageLayout
 	FinalLayout    ImageLayout
-	refe0fc3d48    *C.VkAttachmentDescription2KHR
-	allocse0fc3d48 interface{}
 }
 
 // AttachmentReference2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkAttachmentReference2KHR
@@ -2763,8 +2420,6 @@ type AttachmentReference2 struct {
 	Attachment     uint32
 	Layout         ImageLayout
 	AspectMask     ImageAspectFlags
-	refa31684a1    *C.VkAttachmentReference2KHR
-	allocsa31684a1 interface{}
 }
 
 // SubpassDescription2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSubpassDescription2KHR
@@ -2775,15 +2430,13 @@ type SubpassDescription2 struct {
 	PipelineBindPoint       PipelineBindPoint
 	ViewMask                uint32
 	InputAttachmentCount    uint32
-	PInputAttachments       []AttachmentReference2
+	PInputAttachments       *AttachmentReference2
 	ColorAttachmentCount    uint32
-	PColorAttachments       []AttachmentReference2
-	PResolveAttachments     []AttachmentReference2
-	PDepthStencilAttachment []AttachmentReference2
+	PColorAttachments       *AttachmentReference2
+	PResolveAttachments     *AttachmentReference2
+	PDepthStencilAttachment *AttachmentReference2
 	PreserveAttachmentCount uint32
-	PPreserveAttachments    []uint32
-	ref89a293f3             *C.VkSubpassDescription2KHR
-	allocs89a293f3          interface{}
+	PPreserveAttachments    *uint32
 }
 
 // SubpassDependency2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSubpassDependency2KHR
@@ -2798,8 +2451,6 @@ type SubpassDependency2 struct {
 	DstAccessMask   AccessFlags
 	DependencyFlags DependencyFlags
 	ViewOffset      int32
-	ref985e0998     *C.VkSubpassDependency2KHR
-	allocs985e0998  interface{}
 }
 
 // RenderPassCreateInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkRenderPassCreateInfo2KHR
@@ -2808,15 +2459,13 @@ type RenderPassCreateInfo2 struct {
 	PNext                   unsafe.Pointer
 	Flags                   RenderPassCreateFlags
 	AttachmentCount         uint32
-	PAttachments            []AttachmentDescription2
+	PAttachments            *AttachmentDescription2
 	SubpassCount            uint32
-	PSubpasses              []SubpassDescription2
+	PSubpasses              *SubpassDescription2
 	DependencyCount         uint32
-	PDependencies           []SubpassDependency2
+	PDependencies           *SubpassDependency2
 	CorrelatedViewMaskCount uint32
-	PCorrelatedViewMasks    []uint32
-	ref1d4774de             *C.VkRenderPassCreateInfo2KHR
-	allocs1d4774de          interface{}
+	PCorrelatedViewMasks    *uint32
 }
 
 // SubpassBeginInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSubpassBeginInfoKHR
@@ -2824,16 +2473,12 @@ type SubpassBeginInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Contents       SubpassContents
-	ref7b9f19b8    *C.VkSubpassBeginInfoKHR
-	allocs7b9f19b8 interface{}
 }
 
 // SubpassEndInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSubpassEndInfoKHR
 type SubpassEndInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
-	refb755d027    *C.VkSubpassEndInfoKHR
-	allocsb755d027 interface{}
 }
 
 // SharedPresentSurfaceCapabilities as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSharedPresentSurfaceCapabilitiesKHR
@@ -2841,8 +2486,6 @@ type SharedPresentSurfaceCapabilities struct {
 	SType                            StructureType
 	PNext                            unsafe.Pointer
 	SharedPresentSupportedUsageFlags ImageUsageFlags
-	ref3f98a814                      *C.VkSharedPresentSurfaceCapabilitiesKHR
-	allocs3f98a814                   interface{}
 }
 
 // ImportFenceFdInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkImportFenceFdInfoKHR
@@ -2853,8 +2496,6 @@ type ImportFenceFdInfo struct {
 	Flags          FenceImportFlags
 	HandleType     ExternalFenceHandleTypeFlagBits
 	Fd             int32
-	ref86ebd28c    *C.VkImportFenceFdInfoKHR
-	allocs86ebd28c interface{}
 }
 
 // FenceGetFdInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkFenceGetFdInfoKHR
@@ -2863,8 +2504,6 @@ type FenceGetFdInfo struct {
 	PNext          unsafe.Pointer
 	Fence          Fence
 	HandleType     ExternalFenceHandleTypeFlagBits
-	refc2668bc3    *C.VkFenceGetFdInfoKHR
-	allocsc2668bc3 interface{}
 }
 
 // PhysicalDeviceSurfaceInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPhysicalDeviceSurfaceInfo2KHR
@@ -2872,8 +2511,6 @@ type PhysicalDeviceSurfaceInfo2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Surface        Surface
-	refd22370ae    *C.VkPhysicalDeviceSurfaceInfo2KHR
-	allocsd22370ae interface{}
 }
 
 // SurfaceCapabilities2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceCapabilities2KHR
@@ -2881,8 +2518,6 @@ type SurfaceCapabilities2 struct {
 	SType               StructureType
 	PNext               unsafe.Pointer
 	SurfaceCapabilities SurfaceCapabilities
-	refea469745         *C.VkSurfaceCapabilities2KHR
-	allocsea469745      interface{}
 }
 
 // SurfaceFormat2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkSurfaceFormat2KHR
@@ -2890,8 +2525,6 @@ type SurfaceFormat2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	SurfaceFormat  SurfaceFormat
-	ref8867f0ed    *C.VkSurfaceFormat2KHR
-	allocs8867f0ed interface{}
 }
 
 // DisplayProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayProperties2KHR
@@ -2899,8 +2532,6 @@ type DisplayProperties2 struct {
 	SType             StructureType
 	PNext             unsafe.Pointer
 	DisplayProperties DisplayProperties
-	ref80194833       *C.VkDisplayProperties2KHR
-	allocs80194833    interface{}
 }
 
 // DisplayPlaneProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPlaneProperties2KHR
@@ -2908,8 +2539,6 @@ type DisplayPlaneProperties2 struct {
 	SType                  StructureType
 	PNext                  unsafe.Pointer
 	DisplayPlaneProperties DisplayPlaneProperties
-	refa72b1e5b            *C.VkDisplayPlaneProperties2KHR
-	allocsa72b1e5b         interface{}
 }
 
 // DisplayModeProperties2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayModeProperties2KHR
@@ -2917,8 +2546,6 @@ type DisplayModeProperties2 struct {
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	DisplayModeProperties DisplayModeProperties
-	refc566048d           *C.VkDisplayModeProperties2KHR
-	allocsc566048d        interface{}
 }
 
 // DisplayPlaneInfo2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPlaneInfo2KHR
@@ -2927,8 +2554,6 @@ type DisplayPlaneInfo2 struct {
 	PNext          unsafe.Pointer
 	Mode           DisplayMode
 	PlaneIndex     uint32
-	reff355ccbf    *C.VkDisplayPlaneInfo2KHR
-	allocsf355ccbf interface{}
 }
 
 // DisplayPlaneCapabilities2 as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkDisplayPlaneCapabilities2KHR
@@ -2936,8 +2561,6 @@ type DisplayPlaneCapabilities2 struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	Capabilities   DisplayPlaneCapabilities
-	refb53dfb44    *C.VkDisplayPlaneCapabilities2KHR
-	allocsb53dfb44 interface{}
 }
 
 // ImageFormatListCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkImageFormatListCreateInfoKHR
@@ -2945,9 +2568,7 @@ type ImageFormatListCreateInfo struct {
 	SType           StructureType
 	PNext           unsafe.Pointer
 	ViewFormatCount uint32
-	PViewFormats    []Format
-	ref815daf8c     *C.VkImageFormatListCreateInfoKHR
-	allocs815daf8c  interface{}
+	PViewFormats    *Format
 }
 
 // PhysicalDevice8BitStorageFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPhysicalDevice8BitStorageFeaturesKHR
@@ -2957,8 +2578,6 @@ type PhysicalDevice8BitStorageFeatures struct {
 	StorageBuffer8BitAccess           Bool32
 	UniformAndStorageBuffer8BitAccess Bool32
 	StoragePushConstant8              Bool32
-	ref906ef48e                       *C.VkPhysicalDevice8BitStorageFeaturesKHR
-	allocs906ef48e                    interface{}
 }
 
 // PhysicalDeviceShaderAtomicInt64Features as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPhysicalDeviceShaderAtomicInt64FeaturesKHR
@@ -2967,8 +2586,6 @@ type PhysicalDeviceShaderAtomicInt64Features struct {
 	PNext                    unsafe.Pointer
 	ShaderBufferInt64Atomics Bool32
 	ShaderSharedInt64Atomics Bool32
-	ref51c409c6              *C.VkPhysicalDeviceShaderAtomicInt64FeaturesKHR
-	allocs51c409c6           interface{}
 }
 
 // ConformanceVersion as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkConformanceVersionKHR
@@ -2977,8 +2594,6 @@ type ConformanceVersion struct {
 	Minor          byte
 	Subminor       byte
 	Patch          byte
-	refe4627a5f    *C.VkConformanceVersionKHR
-	allocse4627a5f interface{}
 }
 
 // PhysicalDeviceDriverProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPhysicalDeviceDriverPropertiesKHR
@@ -2989,8 +2604,6 @@ type PhysicalDeviceDriverProperties struct {
 	DriverName         [256]byte
 	DriverInfo         [256]byte
 	ConformanceVersion ConformanceVersion
-	ref9220f954        *C.VkPhysicalDeviceDriverPropertiesKHR
-	allocs9220f954     interface{}
 }
 
 // PhysicalDeviceVulkanMemoryModelFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/xhtml/vkspec.html#VkPhysicalDeviceVulkanMemoryModelFeaturesKHR
@@ -2999,8 +2612,6 @@ type PhysicalDeviceVulkanMemoryModelFeatures struct {
 	PNext                        unsafe.Pointer
 	VulkanMemoryModel            Bool32
 	VulkanMemoryModelDeviceScope Bool32
-	ref2b17642b                  *C.VkPhysicalDeviceVulkanMemoryModelFeaturesKHR
-	allocs2b17642b               interface{}
 }
 
 // DebugReportCallback as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugReportCallbackEXT.html
@@ -3019,8 +2630,6 @@ type DebugReportCallbackCreateInfo struct {
 	Flags          DebugReportFlags
 	PfnCallback    DebugReportCallbackFunc
 	PUserData      unsafe.Pointer
-	refc8238563    *C.VkDebugReportCallbackCreateInfoEXT
-	allocsc8238563 interface{}
 }
 
 // PipelineRasterizationStateRasterizationOrderAMD as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkPipelineRasterizationStateRasterizationOrderAMD
@@ -3028,8 +2637,6 @@ type PipelineRasterizationStateRasterizationOrderAMD struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	RasterizationOrder RasterizationOrderAMD
-	ref5098cf82        *C.VkPipelineRasterizationStateRasterizationOrderAMD
-	allocs5098cf82     interface{}
 }
 
 // DebugMarkerObjectNameInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugMarkerObjectNameInfoEXT.html
@@ -3038,9 +2645,7 @@ type DebugMarkerObjectNameInfo struct {
 	PNext          unsafe.Pointer
 	ObjectType     DebugReportObjectType
 	Object         uint64
-	PObjectName    string
-	refe4983fab    *C.VkDebugMarkerObjectNameInfoEXT
-	allocse4983fab interface{}
+	PObjectName    *C.char
 }
 
 // DebugMarkerObjectTagInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugMarkerObjectTagInfoEXT.html
@@ -3052,18 +2657,14 @@ type DebugMarkerObjectTagInfo struct {
 	TagName        uint64
 	TagSize        uint
 	PTag           unsafe.Pointer
-	refa41a5c3b    *C.VkDebugMarkerObjectTagInfoEXT
-	allocsa41a5c3b interface{}
 }
 
 // DebugMarkerMarkerInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugMarkerMarkerInfoEXT.html
 type DebugMarkerMarkerInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
-	PMarkerName    string
+	PMarkerName    *C.char
 	Color          [4]float32
-	ref234b91fd    *C.VkDebugMarkerMarkerInfoEXT
-	allocs234b91fd interface{}
 }
 
 // DedicatedAllocationImageCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDedicatedAllocationImageCreateInfoNV.html
@@ -3071,8 +2672,6 @@ type DedicatedAllocationImageCreateInfoNV struct {
 	SType               StructureType
 	PNext               unsafe.Pointer
 	DedicatedAllocation Bool32
-	ref685d878b         *C.VkDedicatedAllocationImageCreateInfoNV
-	allocs685d878b      interface{}
 }
 
 // DedicatedAllocationBufferCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDedicatedAllocationBufferCreateInfoNV.html
@@ -3080,8 +2679,6 @@ type DedicatedAllocationBufferCreateInfoNV struct {
 	SType               StructureType
 	PNext               unsafe.Pointer
 	DedicatedAllocation Bool32
-	refbc745a8          *C.VkDedicatedAllocationBufferCreateInfoNV
-	allocsbc745a8       interface{}
 }
 
 // DedicatedAllocationMemoryAllocateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDedicatedAllocationMemoryAllocateInfoNV.html
@@ -3090,8 +2687,6 @@ type DedicatedAllocationMemoryAllocateInfoNV struct {
 	PNext          unsafe.Pointer
 	Image          Image
 	Buffer         Buffer
-	ref9a72b107    *C.VkDedicatedAllocationMemoryAllocateInfoNV
-	allocs9a72b107 interface{}
 }
 
 // PipelineRasterizationStateStreamCreateFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineRasterizationStateStreamCreateFlagsEXT.html
@@ -3103,8 +2698,6 @@ type PhysicalDeviceTransformFeedbackFeatures struct {
 	PNext             unsafe.Pointer
 	TransformFeedback Bool32
 	GeometryStreams   Bool32
-	ref64b2a913       *C.VkPhysicalDeviceTransformFeedbackFeaturesEXT
-	allocs64b2a913    interface{}
 }
 
 // PhysicalDeviceTransformFeedbackProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceTransformFeedbackPropertiesEXT.html
@@ -3121,8 +2714,6 @@ type PhysicalDeviceTransformFeedbackProperties struct {
 	TransformFeedbackStreamsLinesTriangles     Bool32
 	TransformFeedbackRasterizationStreamSelect Bool32
 	TransformFeedbackDraw                      Bool32
-	refc295a2a0                                *C.VkPhysicalDeviceTransformFeedbackPropertiesEXT
-	allocsc295a2a0                             interface{}
 }
 
 // PipelineRasterizationStateStreamCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineRasterizationStateStreamCreateInfoEXT.html
@@ -3131,8 +2722,6 @@ type PipelineRasterizationStateStreamCreateInfo struct {
 	PNext               unsafe.Pointer
 	Flags               PipelineRasterizationStateStreamCreateFlags
 	RasterizationStream uint32
-	refed6e1fb9         *C.VkPipelineRasterizationStateStreamCreateInfoEXT
-	allocsed6e1fb9      interface{}
 }
 
 // TextureLODGatherFormatPropertiesAMD as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkTextureLODGatherFormatPropertiesAMD
@@ -3140,8 +2729,6 @@ type TextureLODGatherFormatPropertiesAMD struct {
 	SType                           StructureType
 	PNext                           unsafe.Pointer
 	SupportsTextureGatherLODBiasAMD Bool32
-	ref519ba3a9                     *C.VkTextureLODGatherFormatPropertiesAMD
-	allocs519ba3a9                  interface{}
 }
 
 // ShaderResourceUsageAMD as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkShaderResourceUsageAMD
@@ -3151,8 +2738,6 @@ type ShaderResourceUsageAMD struct {
 	LdsSizePerLocalWorkGroup uint32
 	LdsUsageSizeInBytes      uint
 	ScratchMemUsageInBytes   uint
-	ref8a688131              *C.VkShaderResourceUsageAMD
-	allocs8a688131           interface{}
 }
 
 // ShaderStatisticsInfoAMD as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkShaderStatisticsInfoAMD
@@ -3164,8 +2749,6 @@ type ShaderStatisticsInfoAMD struct {
 	NumAvailableVgprs    uint32
 	NumAvailableSgprs    uint32
 	ComputeWorkGroupSize [3]uint32
-	ref896a52bf          *C.VkShaderStatisticsInfoAMD
-	allocs896a52bf       interface{}
 }
 
 // PhysicalDeviceCornerSampledImageFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceCornerSampledImageFeaturesNV.html
@@ -3173,8 +2756,6 @@ type PhysicalDeviceCornerSampledImageFeaturesNV struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	CornerSampledImage Bool32
-	refdf4a62d1        *C.VkPhysicalDeviceCornerSampledImageFeaturesNV
-	allocsdf4a62d1     interface{}
 }
 
 // ExternalMemoryHandleTypeFlagsNV type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalMemoryHandleTypeFlagsNV.html
@@ -3189,8 +2770,6 @@ type ExternalImageFormatPropertiesNV struct {
 	ExternalMemoryFeatures        ExternalMemoryFeatureFlagsNV
 	ExportFromImportedHandleTypes ExternalMemoryHandleTypeFlagsNV
 	CompatibleHandleTypes         ExternalMemoryHandleTypeFlagsNV
-	refa8900ce5                   *C.VkExternalImageFormatPropertiesNV
-	allocsa8900ce5                interface{}
 }
 
 // ExternalMemoryImageCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExternalMemoryImageCreateInfoNV.html
@@ -3198,8 +2777,6 @@ type ExternalMemoryImageCreateInfoNV struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	HandleTypes    ExternalMemoryHandleTypeFlagsNV
-	ref9a7fb6c8    *C.VkExternalMemoryImageCreateInfoNV
-	allocs9a7fb6c8 interface{}
 }
 
 // ExportMemoryAllocateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkExportMemoryAllocateInfoNV.html
@@ -3207,8 +2784,6 @@ type ExportMemoryAllocateInfoNV struct {
 	SType         StructureType
 	PNext         unsafe.Pointer
 	HandleTypes   ExternalMemoryHandleTypeFlagsNV
-	ref5066f33    *C.VkExportMemoryAllocateInfoNV
-	allocs5066f33 interface{}
 }
 
 // ValidationFlags as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkValidationFlagsEXT.html
@@ -3216,9 +2791,7 @@ type ValidationFlags struct {
 	SType                        StructureType
 	PNext                        unsafe.Pointer
 	DisabledValidationCheckCount uint32
-	PDisabledValidationChecks    []ValidationCheck
-	refffe080ad                  *C.VkValidationFlagsEXT
-	allocsffe080ad               interface{}
+	PDisabledValidationChecks    *ValidationCheck
 }
 
 // ImageViewASTCDecodeMode as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageViewASTCDecodeModeEXT.html
@@ -3226,8 +2799,6 @@ type ImageViewASTCDecodeMode struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	DecodeMode     Format
-	ref3a973fc0    *C.VkImageViewASTCDecodeModeEXT
-	allocs3a973fc0 interface{}
 }
 
 // PhysicalDeviceASTCDecodeFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceASTCDecodeFeaturesEXT.html
@@ -3235,8 +2806,6 @@ type PhysicalDeviceASTCDecodeFeatures struct {
 	SType                    StructureType
 	PNext                    unsafe.Pointer
 	DecodeModeSharedExponent Bool32
-	refd8af7d5a              *C.VkPhysicalDeviceASTCDecodeFeaturesEXT
-	allocsd8af7d5a           interface{}
 }
 
 // ConditionalRenderingFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkConditionalRenderingFlagsEXT.html
@@ -3249,8 +2818,6 @@ type ConditionalRenderingBeginInfo struct {
 	Buffer         Buffer
 	Offset         DeviceSize
 	Flags          ConditionalRenderingFlags
-	ref82da87c9    *C.VkConditionalRenderingBeginInfoEXT
-	allocs82da87c9 interface{}
 }
 
 // PhysicalDeviceConditionalRenderingFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceConditionalRenderingFeaturesEXT.html
@@ -3259,8 +2826,6 @@ type PhysicalDeviceConditionalRenderingFeatures struct {
 	PNext                         unsafe.Pointer
 	ConditionalRendering          Bool32
 	InheritedConditionalRendering Bool32
-	ref89d2a224                   *C.VkPhysicalDeviceConditionalRenderingFeaturesEXT
-	allocs89d2a224                interface{}
 }
 
 // CommandBufferInheritanceConditionalRenderingInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCommandBufferInheritanceConditionalRenderingInfoEXT.html
@@ -3268,8 +2833,6 @@ type CommandBufferInheritanceConditionalRenderingInfo struct {
 	SType                      StructureType
 	PNext                      unsafe.Pointer
 	ConditionalRenderingEnable Bool32
-	ref7155f49c                *C.VkCommandBufferInheritanceConditionalRenderingInfoEXT
-	allocs7155f49c             interface{}
 }
 
 // ObjectTableNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTableNVX
@@ -3289,8 +2852,6 @@ type DeviceGeneratedCommandsFeaturesNVX struct {
 	SType                      StructureType
 	PNext                      unsafe.Pointer
 	ComputeBindingPointSupport Bool32
-	ref489899be                *C.VkDeviceGeneratedCommandsFeaturesNVX
-	allocs489899be             interface{}
 }
 
 // DeviceGeneratedCommandsLimitsNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkDeviceGeneratedCommandsLimitsNVX
@@ -3302,8 +2863,6 @@ type DeviceGeneratedCommandsLimitsNVX struct {
 	MinSequenceCountBufferOffsetAlignment uint32
 	MinSequenceIndexBufferOffsetAlignment uint32
 	MinCommandsTokenBufferOffsetAlignment uint32
-	refb2b76f40                           *C.VkDeviceGeneratedCommandsLimitsNVX
-	allocsb2b76f40                        interface{}
 }
 
 // IndirectCommandsTokenNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkIndirectCommandsTokenNVX
@@ -3311,8 +2870,6 @@ type IndirectCommandsTokenNVX struct {
 	TokenType      IndirectCommandsTokenTypeNVX
 	Buffer         Buffer
 	Offset         DeviceSize
-	ref8a2daca5    *C.VkIndirectCommandsTokenNVX
-	allocs8a2daca5 interface{}
 }
 
 // IndirectCommandsLayoutTokenNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkIndirectCommandsLayoutTokenNVX
@@ -3321,8 +2878,6 @@ type IndirectCommandsLayoutTokenNVX struct {
 	BindingUnit   uint32
 	DynamicCount  uint32
 	Divisor       uint32
-	refe421769    *C.VkIndirectCommandsLayoutTokenNVX
-	allocse421769 interface{}
 }
 
 // IndirectCommandsLayoutCreateInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkIndirectCommandsLayoutCreateInfoNVX
@@ -3332,9 +2887,7 @@ type IndirectCommandsLayoutCreateInfoNVX struct {
 	PipelineBindPoint PipelineBindPoint
 	Flags             IndirectCommandsLayoutUsageFlagsNVX
 	TokenCount        uint32
-	PTokens           []IndirectCommandsLayoutTokenNVX
-	ref2a2866d5       *C.VkIndirectCommandsLayoutCreateInfoNVX
-	allocs2a2866d5    interface{}
+	PTokens           *IndirectCommandsLayoutTokenNVX
 }
 
 // CmdProcessCommandsInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkCmdProcessCommandsInfoNVX
@@ -3344,15 +2897,13 @@ type CmdProcessCommandsInfoNVX struct {
 	ObjectTable                ObjectTableNVX
 	IndirectCommandsLayout     IndirectCommandsLayoutNVX
 	IndirectCommandsTokenCount uint32
-	PIndirectCommandsTokens    []IndirectCommandsTokenNVX
+	PIndirectCommandsTokens    *IndirectCommandsTokenNVX
 	MaxSequencesCount          uint32
 	TargetCommandBuffer        CommandBuffer
 	SequencesCountBuffer       Buffer
 	SequencesCountOffset       DeviceSize
 	SequencesIndexBuffer       Buffer
 	SequencesIndexOffset       DeviceSize
-	refcd94895d                *C.VkCmdProcessCommandsInfoNVX
-	allocscd94895d             interface{}
 }
 
 // CmdReserveSpaceForCommandsInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkCmdReserveSpaceForCommandsInfoNVX
@@ -3362,8 +2913,6 @@ type CmdReserveSpaceForCommandsInfoNVX struct {
 	ObjectTable            ObjectTableNVX
 	IndirectCommandsLayout IndirectCommandsLayoutNVX
 	MaxSequencesCount      uint32
-	ref900bfee5            *C.VkCmdReserveSpaceForCommandsInfoNVX
-	allocs900bfee5         interface{}
 }
 
 // ObjectTableCreateInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTableCreateInfoNVX
@@ -3371,24 +2920,20 @@ type ObjectTableCreateInfoNVX struct {
 	SType                          StructureType
 	PNext                          unsafe.Pointer
 	ObjectCount                    uint32
-	PObjectEntryTypes              []ObjectEntryTypeNVX
-	PObjectEntryCounts             []uint32
-	PObjectEntryUsageFlags         []ObjectEntryUsageFlagsNVX
+	PObjectEntryTypes              *ObjectEntryTypeNVX
+	PObjectEntryCounts             *uint32
+	PObjectEntryUsageFlags         *ObjectEntryUsageFlagsNVX
 	MaxUniformBuffersPerDescriptor uint32
 	MaxStorageBuffersPerDescriptor uint32
 	MaxStorageImagesPerDescriptor  uint32
 	MaxSampledImagesPerDescriptor  uint32
 	MaxPipelineLayouts             uint32
-	refb4a6c9e1                    *C.VkObjectTableCreateInfoNVX
-	allocsb4a6c9e1                 interface{}
 }
 
 // ObjectTableEntryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTableEntryNVX
 type ObjectTableEntryNVX struct {
 	Type           ObjectEntryTypeNVX
 	Flags          ObjectEntryUsageFlagsNVX
-	refb8f7ffef    *C.VkObjectTableEntryNVX
-	allocsb8f7ffef interface{}
 }
 
 // ObjectTablePipelineEntryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTablePipelineEntryNVX
@@ -3396,8 +2941,6 @@ type ObjectTablePipelineEntryNVX struct {
 	Type           ObjectEntryTypeNVX
 	Flags          ObjectEntryUsageFlagsNVX
 	Pipeline       Pipeline
-	ref8112859b    *C.VkObjectTablePipelineEntryNVX
-	allocs8112859b interface{}
 }
 
 // ObjectTableDescriptorSetEntryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTableDescriptorSetEntryNVX
@@ -3406,8 +2949,6 @@ type ObjectTableDescriptorSetEntryNVX struct {
 	Flags          ObjectEntryUsageFlagsNVX
 	PipelineLayout PipelineLayout
 	DescriptorSet  DescriptorSet
-	ref6fc0d42f    *C.VkObjectTableDescriptorSetEntryNVX
-	allocs6fc0d42f interface{}
 }
 
 // ObjectTableVertexBufferEntryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTableVertexBufferEntryNVX
@@ -3415,8 +2956,6 @@ type ObjectTableVertexBufferEntryNVX struct {
 	Type           ObjectEntryTypeNVX
 	Flags          ObjectEntryUsageFlagsNVX
 	Buffer         Buffer
-	refe8a5908b    *C.VkObjectTableVertexBufferEntryNVX
-	allocse8a5908b interface{}
 }
 
 // ObjectTableIndexBufferEntryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTableIndexBufferEntryNVX
@@ -3425,8 +2964,6 @@ type ObjectTableIndexBufferEntryNVX struct {
 	Flags          ObjectEntryUsageFlagsNVX
 	Buffer         Buffer
 	IndexType      IndexType
-	ref58a08650    *C.VkObjectTableIndexBufferEntryNVX
-	allocs58a08650 interface{}
 }
 
 // ObjectTablePushConstantEntryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkObjectTablePushConstantEntryNVX
@@ -3435,16 +2972,12 @@ type ObjectTablePushConstantEntryNVX struct {
 	Flags          ObjectEntryUsageFlagsNVX
 	PipelineLayout PipelineLayout
 	StageFlags     ShaderStageFlags
-	ref8c8421e0    *C.VkObjectTablePushConstantEntryNVX
-	allocs8c8421e0 interface{}
 }
 
 // ViewportWScalingNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkViewportWScalingNV.html
 type ViewportWScalingNV struct {
 	Xcoeff         float32
 	Ycoeff         float32
-	ref7ea4590f    *C.VkViewportWScalingNV
-	allocs7ea4590f interface{}
 }
 
 // PipelineViewportWScalingStateCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportWScalingStateCreateInfoNV.html
@@ -3453,9 +2986,7 @@ type PipelineViewportWScalingStateCreateInfoNV struct {
 	PNext                  unsafe.Pointer
 	ViewportWScalingEnable Bool32
 	ViewportCount          uint32
-	PViewportWScalings     []ViewportWScalingNV
-	ref3e532c0b            *C.VkPipelineViewportWScalingStateCreateInfoNV
-	allocs3e532c0b         interface{}
+	PViewportWScalings     *ViewportWScalingNV
 }
 
 // SurfaceCounterFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSurfaceCounterFlagsEXT.html
@@ -3466,8 +2997,6 @@ type DisplayPowerInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	PowerState     DisplayPowerState
-	ref80fed52f    *C.VkDisplayPowerInfoEXT
-	allocs80fed52f interface{}
 }
 
 // DeviceEventInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceEventInfoEXT.html
@@ -3475,8 +3004,6 @@ type DeviceEventInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	DeviceEvent    DeviceEventType
-	ref394b3fcb    *C.VkDeviceEventInfoEXT
-	allocs394b3fcb interface{}
 }
 
 // DisplayEventInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDisplayEventInfoEXT.html
@@ -3484,8 +3011,6 @@ type DisplayEventInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	DisplayEvent   DisplayEventType
-	refa69f7302    *C.VkDisplayEventInfoEXT
-	allocsa69f7302 interface{}
 }
 
 // SwapchainCounterCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSwapchainCounterCreateInfoEXT.html
@@ -3493,15 +3018,11 @@ type SwapchainCounterCreateInfo struct {
 	SType           StructureType
 	PNext           unsafe.Pointer
 	SurfaceCounters SurfaceCounterFlags
-	ref9f21eca6     *C.VkSwapchainCounterCreateInfoEXT
-	allocs9f21eca6  interface{}
 }
 
 // RefreshCycleDurationGOOGLE as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRefreshCycleDurationGOOGLE.html
 type RefreshCycleDurationGOOGLE struct {
 	RefreshDuration uint64
-	ref969cb55b     *C.VkRefreshCycleDurationGOOGLE
-	allocs969cb55b  interface{}
 }
 
 // PastPresentationTimingGOOGLE as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPastPresentationTimingGOOGLE.html
@@ -3511,16 +3032,12 @@ type PastPresentationTimingGOOGLE struct {
 	ActualPresentTime   uint64
 	EarliestPresentTime uint64
 	PresentMargin       uint64
-	refac8cf1d8         *C.VkPastPresentationTimingGOOGLE
-	allocsac8cf1d8      interface{}
 }
 
 // PresentTimeGOOGLE as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPresentTimeGOOGLE.html
 type PresentTimeGOOGLE struct {
 	PresentID          uint32
 	DesiredPresentTime uint64
-	ref9cd90ade        *C.VkPresentTimeGOOGLE
-	allocs9cd90ade     interface{}
 }
 
 // PresentTimesInfoGOOGLE as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPresentTimesInfoGOOGLE.html
@@ -3528,9 +3045,7 @@ type PresentTimesInfoGOOGLE struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	SwapchainCount uint32
-	PTimes         []PresentTimeGOOGLE
-	ref70eb8ab3    *C.VkPresentTimesInfoGOOGLE
-	allocs70eb8ab3 interface{}
+	PTimes         *PresentTimeGOOGLE
 }
 
 // PhysicalDeviceMultiviewPerViewAttributesPropertiesNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX
@@ -3538,8 +3053,6 @@ type PhysicalDeviceMultiviewPerViewAttributesPropertiesNVX struct {
 	SType                        StructureType
 	PNext                        unsafe.Pointer
 	PerViewPositionAllComponents Bool32
-	refbaf399ad                  *C.VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX
-	allocsbaf399ad               interface{}
 }
 
 // PipelineViewportSwizzleStateCreateFlagsNV type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportSwizzleStateCreateFlagsNV.html
@@ -3551,8 +3064,6 @@ type ViewportSwizzleNV struct {
 	Y              ViewportCoordinateSwizzleNV
 	Z              ViewportCoordinateSwizzleNV
 	W              ViewportCoordinateSwizzleNV
-	ref74ff2887    *C.VkViewportSwizzleNV
-	allocs74ff2887 interface{}
 }
 
 // PipelineViewportSwizzleStateCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportSwizzleStateCreateInfoNV.html
@@ -3561,9 +3072,7 @@ type PipelineViewportSwizzleStateCreateInfoNV struct {
 	PNext             unsafe.Pointer
 	Flags             PipelineViewportSwizzleStateCreateFlagsNV
 	ViewportCount     uint32
-	PViewportSwizzles []ViewportSwizzleNV
-	ref5e90f24        *C.VkPipelineViewportSwizzleStateCreateInfoNV
-	allocs5e90f24     interface{}
+	PViewportSwizzles *ViewportSwizzleNV
 }
 
 // PipelineDiscardRectangleStateCreateFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineDiscardRectangleStateCreateFlagsEXT.html
@@ -3574,8 +3083,6 @@ type PhysicalDeviceDiscardRectangleProperties struct {
 	SType                StructureType
 	PNext                unsafe.Pointer
 	MaxDiscardRectangles uint32
-	reffe8591da          *C.VkPhysicalDeviceDiscardRectanglePropertiesEXT
-	allocsfe8591da       interface{}
 }
 
 // PipelineDiscardRectangleStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineDiscardRectangleStateCreateInfoEXT.html
@@ -3585,9 +3092,7 @@ type PipelineDiscardRectangleStateCreateInfo struct {
 	Flags                 PipelineDiscardRectangleStateCreateFlags
 	DiscardRectangleMode  DiscardRectangleMode
 	DiscardRectangleCount uint32
-	PDiscardRectangles    []Rect2D
-	refcdbb125e           *C.VkPipelineDiscardRectangleStateCreateInfoEXT
-	allocscdbb125e        interface{}
+	PDiscardRectangles    *Rect2D
 }
 
 // PipelineRasterizationConservativeStateCreateFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineRasterizationConservativeStateCreateFlagsEXT.html
@@ -3606,8 +3111,6 @@ type PhysicalDeviceConservativeRasterizationProperties struct {
 	DegenerateLinesRasterized                   Bool32
 	FullyCoveredFragmentShaderInputVariable     Bool32
 	ConservativeRasterizationPostDepthCoverage  Bool32
-	ref878f819c                                 *C.VkPhysicalDeviceConservativeRasterizationPropertiesEXT
-	allocs878f819c                              interface{}
 }
 
 // PipelineRasterizationConservativeStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineRasterizationConservativeStateCreateInfoEXT.html
@@ -3617,16 +3120,12 @@ type PipelineRasterizationConservativeStateCreateInfo struct {
 	Flags                            PipelineRasterizationConservativeStateCreateFlags
 	ConservativeRasterizationMode    ConservativeRasterizationMode
 	ExtraPrimitiveOverestimationSize float32
-	refe3cd0046                      *C.VkPipelineRasterizationConservativeStateCreateInfoEXT
-	allocse3cd0046                   interface{}
 }
 
 // XYColor as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkXYColorEXT.html
 type XYColor struct {
 	X              float32
 	Y              float32
-	refb8efaa5c    *C.VkXYColorEXT
-	allocsb8efaa5c interface{}
 }
 
 // HdrMetadata as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkHdrMetadataEXT.html
@@ -3641,8 +3140,6 @@ type HdrMetadata struct {
 	MinLuminance              float32
 	MaxContentLightLevel      float32
 	MaxFrameAverageLightLevel float32
-	ref5fd28976               *C.VkHdrMetadataEXT
-	allocs5fd28976            interface{}
 }
 
 // DebugUtilsMessageSeverityFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugUtilsMessageSeverityFlagsEXT.html
@@ -3657,9 +3154,7 @@ type DebugUtilsObjectNameInfo struct {
 	PNext          unsafe.Pointer
 	ObjectType     ObjectType
 	ObjectHandle   uint64
-	PObjectName    string
-	ref5e73c2db    *C.VkDebugUtilsObjectNameInfoEXT
-	allocs5e73c2db interface{}
+	PObjectName    *C.char
 }
 
 // DebugUtilsObjectTagInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugUtilsObjectTagInfoEXT.html
@@ -3671,18 +3166,14 @@ type DebugUtilsObjectTagInfo struct {
 	TagName        uint64
 	TagSize        uint
 	PTag           unsafe.Pointer
-	ref9fd129cf    *C.VkDebugUtilsObjectTagInfoEXT
-	allocs9fd129cf interface{}
 }
 
 // DebugUtilsLabel as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDebugUtilsLabelEXT.html
 type DebugUtilsLabel struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
-	PLabelName     string
+	PLabelName     *C.char
 	Color          [4]float32
-	ref8faaf7b1    *C.VkDebugUtilsLabelEXT
-	allocs8faaf7b1 interface{}
 }
 
 // SamplerReductionModeCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSamplerReductionModeCreateInfoEXT.html
@@ -3690,8 +3181,6 @@ type SamplerReductionModeCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	ReductionMode  SamplerReductionMode
-	reff1cfd4e3    *C.VkSamplerReductionModeCreateInfoEXT
-	allocsf1cfd4e3 interface{}
 }
 
 // PhysicalDeviceSamplerFilterMinmaxProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT.html
@@ -3700,8 +3189,6 @@ type PhysicalDeviceSamplerFilterMinmaxProperties struct {
 	PNext                              unsafe.Pointer
 	FilterMinmaxSingleComponentFormats Bool32
 	FilterMinmaxImageComponentMapping  Bool32
-	refcc32d100                        *C.VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT
-	allocscc32d100                     interface{}
 }
 
 // PhysicalDeviceInlineUniformBlockFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceInlineUniformBlockFeaturesEXT.html
@@ -3710,8 +3197,6 @@ type PhysicalDeviceInlineUniformBlockFeatures struct {
 	PNext                                              unsafe.Pointer
 	InlineUniformBlock                                 Bool32
 	DescriptorBindingInlineUniformBlockUpdateAfterBind Bool32
-	ref5054bc6c                                        *C.VkPhysicalDeviceInlineUniformBlockFeaturesEXT
-	allocs5054bc6c                                     interface{}
 }
 
 // PhysicalDeviceInlineUniformBlockProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceInlineUniformBlockPropertiesEXT.html
@@ -3723,8 +3208,6 @@ type PhysicalDeviceInlineUniformBlockProperties struct {
 	MaxPerStageDescriptorUpdateAfterBindInlineUniformBlocks uint32
 	MaxDescriptorSetInlineUniformBlocks                     uint32
 	MaxDescriptorSetUpdateAfterBindInlineUniformBlocks      uint32
-	ref7ef1794                                              *C.VkPhysicalDeviceInlineUniformBlockPropertiesEXT
-	allocs7ef1794                                           interface{}
 }
 
 // WriteDescriptorSetInlineUniformBlock as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkWriteDescriptorSetInlineUniformBlockEXT.html
@@ -3733,8 +3216,6 @@ type WriteDescriptorSetInlineUniformBlock struct {
 	PNext          unsafe.Pointer
 	DataSize       uint32
 	PData          unsafe.Pointer
-	ref18d00656    *C.VkWriteDescriptorSetInlineUniformBlockEXT
-	allocs18d00656 interface{}
 }
 
 // DescriptorPoolInlineUniformBlockCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorPoolInlineUniformBlockCreateInfoEXT.html
@@ -3742,16 +3223,12 @@ type DescriptorPoolInlineUniformBlockCreateInfo struct {
 	SType                         StructureType
 	PNext                         unsafe.Pointer
 	MaxInlineUniformBlockBindings uint32
-	refbc7edaa3                   *C.VkDescriptorPoolInlineUniformBlockCreateInfoEXT
-	allocsbc7edaa3                interface{}
 }
 
 // SampleLocation as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSampleLocationEXT.html
 type SampleLocation struct {
 	X              float32
 	Y              float32
-	refe7a2e761    *C.VkSampleLocationEXT
-	allocse7a2e761 interface{}
 }
 
 // SampleLocationsInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSampleLocationsInfoEXT.html
@@ -3761,25 +3238,19 @@ type SampleLocationsInfo struct {
 	SampleLocationsPerPixel SampleCountFlagBits
 	SampleLocationGridSize  Extent2D
 	SampleLocationsCount    uint32
-	PSampleLocations        []SampleLocation
-	refd8f3bd2d             *C.VkSampleLocationsInfoEXT
-	allocsd8f3bd2d          interface{}
+	PSampleLocations        *SampleLocation
 }
 
 // AttachmentSampleLocations as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkAttachmentSampleLocationsEXT.html
 type AttachmentSampleLocations struct {
 	AttachmentIndex     uint32
 	SampleLocationsInfo SampleLocationsInfo
-	ref6a3dd41e         *C.VkAttachmentSampleLocationsEXT
-	allocs6a3dd41e      interface{}
 }
 
 // SubpassSampleLocations as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkSubpassSampleLocationsEXT.html
 type SubpassSampleLocations struct {
 	SubpassIndex        uint32
 	SampleLocationsInfo SampleLocationsInfo
-	ref1f612812         *C.VkSubpassSampleLocationsEXT
-	allocs1f612812      interface{}
 }
 
 // RenderPassSampleLocationsBeginInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkRenderPassSampleLocationsBeginInfoEXT.html
@@ -3787,11 +3258,9 @@ type RenderPassSampleLocationsBeginInfo struct {
 	SType                                 StructureType
 	PNext                                 unsafe.Pointer
 	AttachmentInitialSampleLocationsCount uint32
-	PAttachmentInitialSampleLocations     []AttachmentSampleLocations
+	PAttachmentInitialSampleLocations     *AttachmentSampleLocations
 	PostSubpassSampleLocationsCount       uint32
-	PPostSubpassSampleLocations           []SubpassSampleLocations
-	refb61b51d4                           *C.VkRenderPassSampleLocationsBeginInfoEXT
-	allocsb61b51d4                        interface{}
+	PPostSubpassSampleLocations           *SubpassSampleLocations
 }
 
 // PipelineSampleLocationsStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineSampleLocationsStateCreateInfoEXT.html
@@ -3800,8 +3269,6 @@ type PipelineSampleLocationsStateCreateInfo struct {
 	PNext                 unsafe.Pointer
 	SampleLocationsEnable Bool32
 	SampleLocationsInfo   SampleLocationsInfo
-	ref93a2968f           *C.VkPipelineSampleLocationsStateCreateInfoEXT
-	allocs93a2968f        interface{}
 }
 
 // PhysicalDeviceSampleLocationsProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceSampleLocationsPropertiesEXT.html
@@ -3813,8 +3280,6 @@ type PhysicalDeviceSampleLocationsProperties struct {
 	SampleLocationCoordinateRange [2]float32
 	SampleLocationSubPixelBits    uint32
 	VariableSampleLocations       Bool32
-	refaf801323                   *C.VkPhysicalDeviceSampleLocationsPropertiesEXT
-	allocsaf801323                interface{}
 }
 
 // MultisampleProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMultisamplePropertiesEXT.html
@@ -3822,8 +3287,6 @@ type MultisampleProperties struct {
 	SType                     StructureType
 	PNext                     unsafe.Pointer
 	MaxSampleLocationGridSize Extent2D
-	ref3e47f337               *C.VkMultisamplePropertiesEXT
-	allocs3e47f337            interface{}
 }
 
 // PhysicalDeviceBlendOperationAdvancedFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT.html
@@ -3831,8 +3294,6 @@ type PhysicalDeviceBlendOperationAdvancedFeatures struct {
 	SType                           StructureType
 	PNext                           unsafe.Pointer
 	AdvancedBlendCoherentOperations Bool32
-	ref8514bc93                     *C.VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT
-	allocs8514bc93                  interface{}
 }
 
 // PhysicalDeviceBlendOperationAdvancedProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceBlendOperationAdvancedPropertiesEXT.html
@@ -3845,8 +3306,6 @@ type PhysicalDeviceBlendOperationAdvancedProperties struct {
 	AdvancedBlendNonPremultipliedDstColor Bool32
 	AdvancedBlendCorrelatedOverlap        Bool32
 	AdvancedBlendAllOperations            Bool32
-	ref94cb3fa6                           *C.VkPhysicalDeviceBlendOperationAdvancedPropertiesEXT
-	allocs94cb3fa6                        interface{}
 }
 
 // PipelineColorBlendAdvancedStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineColorBlendAdvancedStateCreateInfoEXT.html
@@ -3856,8 +3315,6 @@ type PipelineColorBlendAdvancedStateCreateInfo struct {
 	SrcPremultiplied Bool32
 	DstPremultiplied Bool32
 	BlendOverlap     BlendOverlap
-	refcd374989      *C.VkPipelineColorBlendAdvancedStateCreateInfoEXT
-	allocscd374989   interface{}
 }
 
 // PipelineCoverageToColorStateCreateFlagsNV type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineCoverageToColorStateCreateFlagsNV.html
@@ -3870,8 +3327,6 @@ type PipelineCoverageToColorStateCreateInfoNV struct {
 	Flags                   PipelineCoverageToColorStateCreateFlagsNV
 	CoverageToColorEnable   Bool32
 	CoverageToColorLocation uint32
-	refcc6b7b68             *C.VkPipelineCoverageToColorStateCreateInfoNV
-	allocscc6b7b68          interface{}
 }
 
 // PipelineCoverageModulationStateCreateFlagsNV type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineCoverageModulationStateCreateFlagsNV.html
@@ -3885,9 +3340,7 @@ type PipelineCoverageModulationStateCreateInfoNV struct {
 	CoverageModulationMode        CoverageModulationModeNV
 	CoverageModulationTableEnable Bool32
 	CoverageModulationTableCount  uint32
-	PCoverageModulationTable      []float32
-	refa081b0ea                   *C.VkPipelineCoverageModulationStateCreateInfoNV
-	allocsa081b0ea                interface{}
+	PCoverageModulationTable      *float32
 }
 
 // DrmFormatModifierProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDrmFormatModifierPropertiesEXT.html
@@ -3895,8 +3348,6 @@ type DrmFormatModifierProperties struct {
 	DrmFormatModifier               uint64
 	DrmFormatModifierPlaneCount     uint32
 	DrmFormatModifierTilingFeatures FormatFeatureFlags
-	ref7dcb7f85                     *C.VkDrmFormatModifierPropertiesEXT
-	allocs7dcb7f85                  interface{}
 }
 
 // DrmFormatModifierPropertiesList as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDrmFormatModifierPropertiesListEXT.html
@@ -3904,9 +3355,7 @@ type DrmFormatModifierPropertiesList struct {
 	SType                        StructureType
 	PNext                        unsafe.Pointer
 	DrmFormatModifierCount       uint32
-	PDrmFormatModifierProperties []DrmFormatModifierProperties
-	ref7e3ede2                   *C.VkDrmFormatModifierPropertiesListEXT
-	allocs7e3ede2                interface{}
+	PDrmFormatModifierProperties *DrmFormatModifierProperties
 }
 
 // PhysicalDeviceImageDrmFormatModifierInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceImageDrmFormatModifierInfoEXT.html
@@ -3916,9 +3365,7 @@ type PhysicalDeviceImageDrmFormatModifierInfo struct {
 	DrmFormatModifier     uint64
 	SharingMode           SharingMode
 	QueueFamilyIndexCount uint32
-	PQueueFamilyIndices   []uint32
-	refd7abef44           *C.VkPhysicalDeviceImageDrmFormatModifierInfoEXT
-	allocsd7abef44        interface{}
+	PQueueFamilyIndices   *uint32
 }
 
 // ImageDrmFormatModifierListCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageDrmFormatModifierListCreateInfoEXT.html
@@ -3926,9 +3373,7 @@ type ImageDrmFormatModifierListCreateInfo struct {
 	SType                  StructureType
 	PNext                  unsafe.Pointer
 	DrmFormatModifierCount uint32
-	PDrmFormatModifiers    []uint64
-	ref544538ab            *C.VkImageDrmFormatModifierListCreateInfoEXT
-	allocs544538ab         interface{}
+	PDrmFormatModifiers    *uint64
 }
 
 // ImageDrmFormatModifierExplicitCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageDrmFormatModifierExplicitCreateInfoEXT.html
@@ -3937,9 +3382,7 @@ type ImageDrmFormatModifierExplicitCreateInfo struct {
 	PNext                       unsafe.Pointer
 	DrmFormatModifier           uint64
 	DrmFormatModifierPlaneCount uint32
-	PPlaneLayouts               []SubresourceLayout
-	ref8fb45ca9                 *C.VkImageDrmFormatModifierExplicitCreateInfoEXT
-	allocs8fb45ca9              interface{}
+	PPlaneLayouts               *SubresourceLayout
 }
 
 // ImageDrmFormatModifierProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImageDrmFormatModifierPropertiesEXT.html
@@ -3947,8 +3390,6 @@ type ImageDrmFormatModifierProperties struct {
 	SType             StructureType
 	PNext             unsafe.Pointer
 	DrmFormatModifier uint64
-	ref86a0f149       *C.VkImageDrmFormatModifierPropertiesEXT
-	allocs86a0f149    interface{}
 }
 
 // ValidationCache as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkValidationCacheEXT.html
@@ -3964,8 +3405,6 @@ type ValidationCacheCreateInfo struct {
 	Flags           ValidationCacheCreateFlags
 	InitialDataSize uint
 	PInitialData    unsafe.Pointer
-	ref3d8ac8aa     *C.VkValidationCacheCreateInfoEXT
-	allocs3d8ac8aa  interface{}
 }
 
 // ShaderModuleValidationCacheCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkShaderModuleValidationCacheCreateInfoEXT.html
@@ -3973,8 +3412,6 @@ type ShaderModuleValidationCacheCreateInfo struct {
 	SType           StructureType
 	PNext           unsafe.Pointer
 	ValidationCache ValidationCache
-	ref37065f24     *C.VkShaderModuleValidationCacheCreateInfoEXT
-	allocs37065f24  interface{}
 }
 
 // DescriptorBindingFlags type as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorBindingFlagsEXT.html
@@ -3985,9 +3422,7 @@ type DescriptorSetLayoutBindingFlagsCreateInfo struct {
 	SType         StructureType
 	PNext         unsafe.Pointer
 	BindingCount  uint32
-	PBindingFlags []DescriptorBindingFlags
-	refcb1cf42    *C.VkDescriptorSetLayoutBindingFlagsCreateInfoEXT
-	allocscb1cf42 interface{}
+	PBindingFlags *DescriptorBindingFlags
 }
 
 // PhysicalDeviceDescriptorIndexingFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceDescriptorIndexingFeaturesEXT.html
@@ -4014,8 +3449,6 @@ type PhysicalDeviceDescriptorIndexingFeatures struct {
 	DescriptorBindingPartiallyBound                    Bool32
 	DescriptorBindingVariableDescriptorCount           Bool32
 	RuntimeDescriptorArray                             Bool32
-	ref76ca48bc                                        *C.VkPhysicalDeviceDescriptorIndexingFeaturesEXT
-	allocs76ca48bc                                     interface{}
 }
 
 // PhysicalDeviceDescriptorIndexingProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceDescriptorIndexingPropertiesEXT.html
@@ -4045,8 +3478,6 @@ type PhysicalDeviceDescriptorIndexingProperties struct {
 	MaxDescriptorSetUpdateAfterBindSampledImages         uint32
 	MaxDescriptorSetUpdateAfterBindStorageImages         uint32
 	MaxDescriptorSetUpdateAfterBindInputAttachments      uint32
-	ref3c07c210                                          *C.VkPhysicalDeviceDescriptorIndexingPropertiesEXT
-	allocs3c07c210                                       interface{}
 }
 
 // DescriptorSetVariableDescriptorCountAllocateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorSetVariableDescriptorCountAllocateInfoEXT.html
@@ -4054,9 +3485,7 @@ type DescriptorSetVariableDescriptorCountAllocateInfo struct {
 	SType              StructureType
 	PNext              unsafe.Pointer
 	DescriptorSetCount uint32
-	PDescriptorCounts  []uint32
-	ref65152aef        *C.VkDescriptorSetVariableDescriptorCountAllocateInfoEXT
-	allocs65152aef     interface{}
+	PDescriptorCounts  *uint32
 }
 
 // DescriptorSetVariableDescriptorCountLayoutSupport as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDescriptorSetVariableDescriptorCountLayoutSupportEXT.html
@@ -4064,16 +3493,12 @@ type DescriptorSetVariableDescriptorCountLayoutSupport struct {
 	SType                      StructureType
 	PNext                      unsafe.Pointer
 	MaxVariableDescriptorCount uint32
-	ref4684c56f                *C.VkDescriptorSetVariableDescriptorCountLayoutSupportEXT
-	allocs4684c56f             interface{}
 }
 
 // ShadingRatePaletteNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkShadingRatePaletteNV.html
 type ShadingRatePaletteNV struct {
 	ShadingRatePaletteEntryCount uint32
-	PShadingRatePaletteEntries   []ShadingRatePaletteEntryNV
-	refa5c4ae3a                  *C.VkShadingRatePaletteNV
-	allocsa5c4ae3a               interface{}
+	PShadingRatePaletteEntries   *ShadingRatePaletteEntryNV
 }
 
 // PipelineViewportShadingRateImageStateCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportShadingRateImageStateCreateInfoNV.html
@@ -4082,9 +3507,7 @@ type PipelineViewportShadingRateImageStateCreateInfoNV struct {
 	PNext                  unsafe.Pointer
 	ShadingRateImageEnable Bool32
 	ViewportCount          uint32
-	PShadingRatePalettes   []ShadingRatePaletteNV
-	ref6f2ec732            *C.VkPipelineViewportShadingRateImageStateCreateInfoNV
-	allocs6f2ec732         interface{}
+	PShadingRatePalettes   *ShadingRatePaletteNV
 }
 
 // PhysicalDeviceShadingRateImageFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceShadingRateImageFeaturesNV.html
@@ -4093,8 +3516,6 @@ type PhysicalDeviceShadingRateImageFeaturesNV struct {
 	PNext                        unsafe.Pointer
 	ShadingRateImage             Bool32
 	ShadingRateCoarseSampleOrder Bool32
-	ref199a921b                  *C.VkPhysicalDeviceShadingRateImageFeaturesNV
-	allocs199a921b               interface{}
 }
 
 // PhysicalDeviceShadingRateImagePropertiesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceShadingRateImagePropertiesNV.html
@@ -4104,8 +3525,6 @@ type PhysicalDeviceShadingRateImagePropertiesNV struct {
 	ShadingRateTexelSize        Extent2D
 	ShadingRatePaletteSize      uint32
 	ShadingRateMaxCoarseSamples uint32
-	refea059f34                 *C.VkPhysicalDeviceShadingRateImagePropertiesNV
-	allocsea059f34              interface{}
 }
 
 // CoarseSampleLocationNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCoarseSampleLocationNV.html
@@ -4113,8 +3532,6 @@ type CoarseSampleLocationNV struct {
 	PixelX         uint32
 	PixelY         uint32
 	Sample         uint32
-	ref2f447beb    *C.VkCoarseSampleLocationNV
-	allocs2f447beb interface{}
 }
 
 // CoarseSampleOrderCustomNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCoarseSampleOrderCustomNV.html
@@ -4122,9 +3539,7 @@ type CoarseSampleOrderCustomNV struct {
 	ShadingRate         ShadingRatePaletteEntryNV
 	SampleCount         uint32
 	SampleLocationCount uint32
-	PSampleLocations    []CoarseSampleLocationNV
-	ref4524fa09         *C.VkCoarseSampleOrderCustomNV
-	allocs4524fa09      interface{}
+	PSampleLocations    *CoarseSampleLocationNV
 }
 
 // PipelineViewportCoarseSampleOrderStateCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportCoarseSampleOrderStateCreateInfoNV.html
@@ -4133,9 +3548,7 @@ type PipelineViewportCoarseSampleOrderStateCreateInfoNV struct {
 	PNext                  unsafe.Pointer
 	SampleOrderType        CoarseSampleOrderTypeNV
 	CustomSampleOrderCount uint32
-	PCustomSampleOrders    []CoarseSampleOrderCustomNV
-	ref54de8ca6            *C.VkPipelineViewportCoarseSampleOrderStateCreateInfoNV
-	allocs54de8ca6         interface{}
+	PCustomSampleOrders    *CoarseSampleOrderCustomNV
 }
 
 // AccelerationStructureNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkAccelerationStructureNVX
@@ -4156,14 +3569,12 @@ type RaytracingPipelineCreateInfoNVX struct {
 	PNext              unsafe.Pointer
 	Flags              PipelineCreateFlags
 	StageCount         uint32
-	PStages            []PipelineShaderStageCreateInfo
-	PGroupNumbers      []uint32
+	PStages            *PipelineShaderStageCreateInfo
+	PGroupNumbers      *uint32
 	MaxRecursionDepth  uint32
 	Layout             PipelineLayout
 	BasePipelineHandle Pipeline
 	BasePipelineIndex  int32
-	ref4d91852a        *C.VkRaytracingPipelineCreateInfoNVX
-	allocs4d91852a     interface{}
 }
 
 // GeometryTrianglesNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkGeometryTrianglesNVX
@@ -4181,8 +3592,6 @@ type GeometryTrianglesNVX struct {
 	IndexType       IndexType
 	TransformData   Buffer
 	TransformOffset DeviceSize
-	ref5c3b4de9     *C.VkGeometryTrianglesNVX
-	allocs5c3b4de9  interface{}
 }
 
 // GeometryAABBNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkGeometryAABBNVX
@@ -4193,16 +3602,12 @@ type GeometryAABBNVX struct {
 	NumAABBs       uint32
 	Stride         uint32
 	Offset         DeviceSize
-	reff4c42a9d    *C.VkGeometryAABBNVX
-	allocsf4c42a9d interface{}
 }
 
 // GeometryDataNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkGeometryDataNVX
 type GeometryDataNVX struct {
 	Triangles      GeometryTrianglesNVX
 	Aabbs          GeometryAABBNVX
-	ref3db64dfa    *C.VkGeometryDataNVX
-	allocs3db64dfa interface{}
 }
 
 // GeometryNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkGeometryNVX
@@ -4212,8 +3617,6 @@ type GeometryNVX struct {
 	GeometryType   GeometryTypeNVX
 	Geometry       GeometryDataNVX
 	Flags          GeometryFlagsNVX
-	refd01fad9d    *C.VkGeometryNVX
-	allocsd01fad9d interface{}
 }
 
 // AccelerationStructureCreateInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkAccelerationStructureCreateInfoNVX
@@ -4225,9 +3628,7 @@ type AccelerationStructureCreateInfoNVX struct {
 	CompactedSize  DeviceSize
 	InstanceCount  uint32
 	GeometryCount  uint32
-	PGeometries    []GeometryNVX
-	ref1289fd56    *C.VkAccelerationStructureCreateInfoNVX
-	allocs1289fd56 interface{}
+	PGeometries    *GeometryNVX
 }
 
 // BindAccelerationStructureMemoryInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkBindAccelerationStructureMemoryInfoNVX
@@ -4238,9 +3639,7 @@ type BindAccelerationStructureMemoryInfoNVX struct {
 	Memory                DeviceMemory
 	MemoryOffset          DeviceSize
 	DeviceIndexCount      uint32
-	PDeviceIndices        []uint32
-	refb92eae10           *C.VkBindAccelerationStructureMemoryInfoNVX
-	allocsb92eae10        interface{}
+	PDeviceIndices        *uint32
 }
 
 // DescriptorAccelerationStructureInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkDescriptorAccelerationStructureInfoNVX
@@ -4248,9 +3647,7 @@ type DescriptorAccelerationStructureInfoNVX struct {
 	SType                      StructureType
 	PNext                      unsafe.Pointer
 	AccelerationStructureCount uint32
-	PAccelerationStructures    []AccelerationStructureNVX
-	refde5f3ba5                *C.VkDescriptorAccelerationStructureInfoNVX
-	allocsde5f3ba5             interface{}
+	PAccelerationStructures    *AccelerationStructureNVX
 }
 
 // AccelerationStructureMemoryRequirementsInfoNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkAccelerationStructureMemoryRequirementsInfoNVX
@@ -4258,8 +3655,6 @@ type AccelerationStructureMemoryRequirementsInfoNVX struct {
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	AccelerationStructure AccelerationStructureNVX
-	ref212466e8           *C.VkAccelerationStructureMemoryRequirementsInfoNVX
-	allocs212466e8        interface{}
 }
 
 // PhysicalDeviceRaytracingPropertiesNVX as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkPhysicalDeviceRaytracingPropertiesNVX
@@ -4269,8 +3664,6 @@ type PhysicalDeviceRaytracingPropertiesNVX struct {
 	ShaderHeaderSize  uint32
 	MaxRecursionDepth uint32
 	MaxGeometryCount  uint32
-	refd37a6b69       *C.VkPhysicalDeviceRaytracingPropertiesNVX
-	allocsd37a6b69    interface{}
 }
 
 // PhysicalDeviceRepresentativeFragmentTestFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV.html
@@ -4278,8 +3671,6 @@ type PhysicalDeviceRepresentativeFragmentTestFeaturesNV struct {
 	SType                      StructureType
 	PNext                      unsafe.Pointer
 	RepresentativeFragmentTest Bool32
-	reff1f69e03                *C.VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV
-	allocsf1f69e03             interface{}
 }
 
 // PipelineRepresentativeFragmentTestStateCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineRepresentativeFragmentTestStateCreateInfoNV.html
@@ -4287,8 +3678,6 @@ type PipelineRepresentativeFragmentTestStateCreateInfoNV struct {
 	SType                            StructureType
 	PNext                            unsafe.Pointer
 	RepresentativeFragmentTestEnable Bool32
-	ref9c224e21                      *C.VkPipelineRepresentativeFragmentTestStateCreateInfoNV
-	allocs9c224e21                   interface{}
 }
 
 // DeviceQueueGlobalPriorityCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDeviceQueueGlobalPriorityCreateInfoEXT.html
@@ -4296,8 +3685,6 @@ type DeviceQueueGlobalPriorityCreateInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	GlobalPriority QueueGlobalPriority
-	ref76356646    *C.VkDeviceQueueGlobalPriorityCreateInfoEXT
-	allocs76356646 interface{}
 }
 
 // ImportMemoryHostPointerInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkImportMemoryHostPointerInfoEXT.html
@@ -4306,8 +3693,6 @@ type ImportMemoryHostPointerInfo struct {
 	PNext          unsafe.Pointer
 	HandleType     ExternalMemoryHandleTypeFlagBits
 	PHostPointer   unsafe.Pointer
-	reffe09253e    *C.VkImportMemoryHostPointerInfoEXT
-	allocsfe09253e interface{}
 }
 
 // MemoryHostPointerProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkMemoryHostPointerPropertiesEXT.html
@@ -4315,8 +3700,6 @@ type MemoryHostPointerProperties struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	MemoryTypeBits uint32
-	refebf46a84    *C.VkMemoryHostPointerPropertiesEXT
-	allocsebf46a84 interface{}
 }
 
 // PhysicalDeviceExternalMemoryHostProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceExternalMemoryHostPropertiesEXT.html
@@ -4324,8 +3707,6 @@ type PhysicalDeviceExternalMemoryHostProperties struct {
 	SType                           StructureType
 	PNext                           unsafe.Pointer
 	MinImportedHostPointerAlignment DeviceSize
-	ref7f697d15                     *C.VkPhysicalDeviceExternalMemoryHostPropertiesEXT
-	allocs7f697d15                  interface{}
 }
 
 // CalibratedTimestampInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCalibratedTimestampInfoEXT.html
@@ -4333,8 +3714,6 @@ type CalibratedTimestampInfo struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	TimeDomain     TimeDomain
-	ref5f061d2a    *C.VkCalibratedTimestampInfoEXT
-	allocs5f061d2a interface{}
 }
 
 // PhysicalDeviceShaderCorePropertiesAMD as declared in https://www.khronos.org/registry/vulkan/specs/1.0-extensions/xhtml/vkspec.html#VkPhysicalDeviceShaderCorePropertiesAMD
@@ -4355,8 +3734,6 @@ type PhysicalDeviceShaderCorePropertiesAMD struct {
 	MinVgprAllocation          uint32
 	MaxVgprAllocation          uint32
 	VgprAllocationGranularity  uint32
-	refde4b3b09                *C.VkPhysicalDeviceShaderCorePropertiesAMD
-	allocsde4b3b09             interface{}
 }
 
 // PhysicalDeviceVertexAttributeDivisorProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT.html
@@ -4364,16 +3741,12 @@ type PhysicalDeviceVertexAttributeDivisorProperties struct {
 	SType                  StructureType
 	PNext                  unsafe.Pointer
 	MaxVertexAttribDivisor uint32
-	refbd6b5075            *C.VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT
-	allocsbd6b5075         interface{}
 }
 
 // VertexInputBindingDivisorDescription as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkVertexInputBindingDivisorDescriptionEXT.html
 type VertexInputBindingDivisorDescription struct {
 	Binding        uint32
 	Divisor        uint32
-	refd64d4396    *C.VkVertexInputBindingDivisorDescriptionEXT
-	allocsd64d4396 interface{}
 }
 
 // PipelineVertexInputDivisorStateCreateInfo as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineVertexInputDivisorStateCreateInfoEXT.html
@@ -4381,9 +3754,7 @@ type PipelineVertexInputDivisorStateCreateInfo struct {
 	SType                     StructureType
 	PNext                     unsafe.Pointer
 	VertexBindingDivisorCount uint32
-	PVertexBindingDivisors    []VertexInputBindingDivisorDescription
-	ref86096bfd               *C.VkPipelineVertexInputDivisorStateCreateInfoEXT
-	allocs86096bfd            interface{}
+	PVertexBindingDivisors    *VertexInputBindingDivisorDescription
 }
 
 // PhysicalDeviceVertexAttributeDivisorFeatures as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT.html
@@ -4392,8 +3763,6 @@ type PhysicalDeviceVertexAttributeDivisorFeatures struct {
 	PNext                                  unsafe.Pointer
 	VertexAttributeInstanceRateDivisor     Bool32
 	VertexAttributeInstanceRateZeroDivisor Bool32
-	refffe7619a                            *C.VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT
-	allocsffe7619a                         interface{}
 }
 
 // PhysicalDeviceComputeShaderDerivativesFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceComputeShaderDerivativesFeaturesNV.html
@@ -4402,8 +3771,6 @@ type PhysicalDeviceComputeShaderDerivativesFeaturesNV struct {
 	PNext                        unsafe.Pointer
 	ComputeDerivativeGroupQuads  Bool32
 	ComputeDerivativeGroupLinear Bool32
-	reff31d599c                  *C.VkPhysicalDeviceComputeShaderDerivativesFeaturesNV
-	allocsf31d599c               interface{}
 }
 
 // PhysicalDeviceMeshShaderFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMeshShaderFeaturesNV.html
@@ -4412,8 +3779,6 @@ type PhysicalDeviceMeshShaderFeaturesNV struct {
 	PNext         unsafe.Pointer
 	TaskShader    Bool32
 	MeshShader    Bool32
-	ref802b98a    *C.VkPhysicalDeviceMeshShaderFeaturesNV
-	allocs802b98a interface{}
 }
 
 // PhysicalDeviceMeshShaderPropertiesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceMeshShaderPropertiesNV.html
@@ -4433,16 +3798,12 @@ type PhysicalDeviceMeshShaderPropertiesNV struct {
 	MaxMeshMultiviewViewCount         uint32
 	MeshOutputPerVertexGranularity    uint32
 	MeshOutputPerPrimitiveGranularity uint32
-	ref2ee3ccb7                       *C.VkPhysicalDeviceMeshShaderPropertiesNV
-	allocs2ee3ccb7                    interface{}
 }
 
 // DrawMeshTasksIndirectCommandNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkDrawMeshTasksIndirectCommandNV.html
 type DrawMeshTasksIndirectCommandNV struct {
 	TaskCount      uint32
 	FirstTask      uint32
-	refda6c46ea    *C.VkDrawMeshTasksIndirectCommandNV
-	allocsda6c46ea interface{}
 }
 
 // PhysicalDeviceFragmentShaderBarycentricFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV.html
@@ -4450,8 +3811,6 @@ type PhysicalDeviceFragmentShaderBarycentricFeaturesNV struct {
 	SType                     StructureType
 	PNext                     unsafe.Pointer
 	FragmentShaderBarycentric Bool32
-	ref191b97c6               *C.VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV
-	allocs191b97c6            interface{}
 }
 
 // PhysicalDeviceShaderImageFootprintFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceShaderImageFootprintFeaturesNV.html
@@ -4459,8 +3818,6 @@ type PhysicalDeviceShaderImageFootprintFeaturesNV struct {
 	SType          StructureType
 	PNext          unsafe.Pointer
 	ImageFootprint Bool32
-	ref9d61e1b2    *C.VkPhysicalDeviceShaderImageFootprintFeaturesNV
-	allocs9d61e1b2 interface{}
 }
 
 // PipelineViewportExclusiveScissorStateCreateInfoNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPipelineViewportExclusiveScissorStateCreateInfoNV.html
@@ -4468,9 +3825,7 @@ type PipelineViewportExclusiveScissorStateCreateInfoNV struct {
 	SType                 StructureType
 	PNext                 unsafe.Pointer
 	ExclusiveScissorCount uint32
-	PExclusiveScissors    []Rect2D
-	refa8715ba6           *C.VkPipelineViewportExclusiveScissorStateCreateInfoNV
-	allocsa8715ba6        interface{}
+	PExclusiveScissors    *Rect2D
 }
 
 // PhysicalDeviceExclusiveScissorFeaturesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceExclusiveScissorFeaturesNV.html
@@ -4478,8 +3833,6 @@ type PhysicalDeviceExclusiveScissorFeaturesNV struct {
 	SType            StructureType
 	PNext            unsafe.Pointer
 	ExclusiveScissor Bool32
-	ref52c9fcfc      *C.VkPhysicalDeviceExclusiveScissorFeaturesNV
-	allocs52c9fcfc   interface{}
 }
 
 // QueueFamilyCheckpointPropertiesNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkQueueFamilyCheckpointPropertiesNV.html
@@ -4487,8 +3840,6 @@ type QueueFamilyCheckpointPropertiesNV struct {
 	SType                        StructureType
 	PNext                        unsafe.Pointer
 	CheckpointExecutionStageMask PipelineStageFlags
-	ref351f58c6                  *C.VkQueueFamilyCheckpointPropertiesNV
-	allocs351f58c6               interface{}
 }
 
 // CheckpointDataNV as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkCheckpointDataNV.html
@@ -4497,8 +3848,6 @@ type CheckpointDataNV struct {
 	PNext             unsafe.Pointer
 	Stage             PipelineStageFlagBits
 	PCheckpointMarker unsafe.Pointer
-	refd1c9224b       *C.VkCheckpointDataNV
-	allocsd1c9224b    interface{}
 }
 
 // PhysicalDevicePCIBusInfoProperties as declared in https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDevicePCIBusInfoPropertiesEXT.html
@@ -4509,6 +3858,4 @@ type PhysicalDevicePCIBusInfoProperties struct {
 	PciBus         byte
 	PciDevice      byte
 	PciFunction    byte
-	refdd9947ff    *C.VkPhysicalDevicePCIBusInfoPropertiesEXT
-	allocsdd9947ff interface{}
 }
