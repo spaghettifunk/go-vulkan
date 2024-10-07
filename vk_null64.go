@@ -7,7 +7,11 @@ import "unsafe"
 
 var (
 	// NullHandle defines a platform-specfic NULL handle.
-	NullHandle unsafe.Pointer
+	NullHandle         unsafe.Pointer
+	NullInstance       Instance
+	NullPhysicalDevice PhysicalDevice
+	NullDevice         Device
+	NullCommandBuffer  CommandBuffer
 	// NullSemaphore defines a platform-specfic NULL Semaphore.
 	NullSemaphore Semaphore
 	// NullFence defines a platform-specfic NULL Fence.

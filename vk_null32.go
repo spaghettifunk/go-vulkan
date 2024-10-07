@@ -5,7 +5,11 @@ package vulkan
 
 var (
 	// NullHandle defines a platform-specfic NULL handle.
-	NullHandle = 0
+	NullHandle         = 0
+	NullInstance       Instance
+	NullPhysicalDevice PhysicalDevice
+	NullDevice         Device
+	NullCommandBuffer  CommandBuffer
 	// NullSemaphore defines a platform-specfic NULL Semaphore.
 	NullSemaphore Semaphore = 0
 	// NullFence defines a platform-specfic NULL Fence.

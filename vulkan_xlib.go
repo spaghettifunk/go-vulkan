@@ -1,4 +1,4 @@
-//go:build linux || darwin
+//go:build linux && !android
 
 package vulkan
 
@@ -16,7 +16,6 @@ func XlibSurfaceCreateInfoKHRHelper(window, display unsafe.Pointer, instance Ins
 	cinstance := *(*C.VkInstance)(unsafe.Pointer(&instance))
 	createInfo := C.VkXlibSurfaceCreateInfoKHR{}
 	createInfo.sType = C.VkStructureType(StructureTypeXlibSurfaceCreateInfo)
-	println(uintptr(display), uintptr(window))
 	createInfo.dpy = (*C.Display)(display)
 	createInfo.window = *(*C.Window)(window)
 	cSurface := (*C.VkSurfaceKHR)(unsafe.Pointer(surface))
